@@ -42,8 +42,8 @@ const Contact = () => {
             <p>We’d love to hear from you! Whether you have a question, feedback, or just want to say hello, feel free to reach out to us. Our team is here to assist you.</p>
             <ul>
                 <li><img src={mail_icon} alt="" />finadvise@123.dev</li>
-                <li><img src={phone_icon} alt="" />+91 9834814644</li>
-                <li><img src={location_icon} alt="" />VIIT Pune<br/>Maharashta</li>
+                <li><img src={phone_icon} alt="" />+91 7020053677</li>
+                <li><img src={location_icon} alt="" />MIT AOE Pune<br/>Maharashtra</li>
 
             </ul>
         </div>

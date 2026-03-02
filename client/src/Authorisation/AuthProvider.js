@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
         draggable: false,
       });
 
-      await axios.post(`http://localhost:8080/api/auth/logout`, {}, {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/logout`, {}, {
         withCredentials: true
       });
 
@@ -133,7 +133,7 @@ export const AuthProvider = ({ children }) => {
   const verifyAuth = useCallback(async () => {
     try {
       console.log('🔍 Verifying authentication with server...');
-      const response = await axios.get(`http://localhost:8080/api/auth/verify`, {
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/auth/verify`, {
         withCredentials: true
       });
       

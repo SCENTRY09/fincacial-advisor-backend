@@ -33,7 +33,7 @@ const testimonials = [
     // },
     {
         img: user_5,
-        name: "Aashish Suryawanshi",
+        name: "Mitesh Chaudhari",
         role: "Full Stack Developer",
         text: "I am a motivated and versatile individual, always eager to take on new challenges. With a passion for learning I am dedicated to delivering high-quality results. I am ready to make a meaningful contribution and achieve great things."
     }

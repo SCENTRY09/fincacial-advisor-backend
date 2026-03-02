@@ -112,7 +112,7 @@ const Signup = () => {
       setIsLoading(true);
 
       const response = await axios.post(
-        `http://localhost:8080/api/auth/register`,
+        `${process.env.REACT_APP_BACKEND_URL}/api/auth/register`,
         {
           name: formData.name,
           email: formData.email,

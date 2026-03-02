@@ -146,6 +146,12 @@ const translations = {
           icon: Briefcase,
         },
         {
+          title: "Microinvestment Platform",
+          description: "Start investing with small amounts and grow your wealth",
+          link: "/mip",
+          icon: BadgeSwissFranc,
+        },
+        {
           title: "Schemes & Benefits",
           description: "View and manage detailed government schemes and benefits",
           link: "/scheme",
@@ -203,7 +209,7 @@ const translations = {
         {
           title: "Fun And Learn", 
           description: "Learn financial concepts through interactive games and quizzes",
-          link: "/game",
+          link: "/learn",
           icon: BookOpen,
         },
       ]

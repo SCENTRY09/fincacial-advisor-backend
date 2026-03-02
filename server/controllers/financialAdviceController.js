@@ -21,17 +21,13 @@ const generateFinancialAdvice = async (req, res) => {
 
     if (
       !name ||
-      !age ||
-      !monthly_income ||
       !financial_goal ||
-      !location ||
-      !preferred_language ||
       !business_type ||
-      !existing_savings ||
+      existing_savings === undefined ||
       !risk_tolerance
     ) {
       console.error("Missing required fields");
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({ error: "Missing required fields: name, financial_goal, business_type, existing_savings, risk_tolerance" });
     }
 
     const prompt = `You are a highly experienced financial advisor with deep expertise in personal finance, investment planning, and financial regulations. Generate a detailed, comprehensive financial advice report for ${name}.
@@ -49,11 +45,11 @@ const generateFinancialAdvice = async (req, res) => {
 
 **Client Profile:**
 - Name: ${name}
-- Age: ${age} years
-- Monthly Income: ₹${monthly_income}
+- Age: ${age || 'Not provided'}
+- Monthly Income: ₹${monthly_income || 'Not provided'}
 - Financial Goal: ${financial_goal}
-- Location: ${location}
-- Language: ${preferred_language}
+- Location: ${location || 'Not provided'}
+- Language: ${preferred_language || 'English'}
 - Business: ${business_type}
 - Current Savings: ₹${existing_savings}
 - Risk Level: ${risk_tolerance}

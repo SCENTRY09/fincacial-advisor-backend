@@ -157,7 +157,7 @@ const Profile = () => {
       }
 
       const response = await axios.put(
-        'http://localhost:8080/api/auth/profile',
+        `${process.env.REACT_APP_BACKEND_URL}/api/auth/profile`,
         updateData,
         { withCredentials: true }
       );
