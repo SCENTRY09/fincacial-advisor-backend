@@ -4,9 +4,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-// Use /tmp for Vercel serverless (only writable directory)
-const uploadsDir = '/tmp/uploads';
+// Use OS temp dir for cross-platform compatibility
+const os = require('os');
+const uploadsDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(os.tmpdir(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -107,11 +107,21 @@ exports.addTransaction = async (req, res) => {
         }
 
         // Create new transaction
+        // Handle DD-MM-YYYY or YYYY-MM-DD date formats
+        let parsedDate = new Date();
+        if (date) {
+            const ddmmyyyy = date.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+            parsedDate = ddmmyyyy
+                ? new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`)
+                : new Date(date);
+            if (isNaN(parsedDate.getTime())) parsedDate = new Date();
+        }
+
         const transaction = new Transaction({ 
             type,
             text: text.trim(), 
             amount: parsedAmount,
-            date: date ? new Date(date) : new Date(),
+            date: parsedDate,
             category,
             notes: notes || '',
             source

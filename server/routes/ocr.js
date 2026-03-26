@@ -5,9 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const { handleUpload, handleExtract } = require('../controllers/ocrController');
 
-// Ensure uploads directory exists
-// Use /tmp for serverless environments like Vercel (only writable directory)
-const uploadsDir = '/tmp/uploads';
+const os = require('os');
+// Use OS temp dir for cross-platform compatibility
+const uploadsDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : require('path').join(os.tmpdir(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log('✅ Created uploads directory:', uploadsDir);

@@ -29,13 +29,15 @@ const ExpenseTracker = () => {
         fetchData();
     }, []);
 
+    const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
+
     const fetchData = async () => {
         try {
             setLoading(true);
             const [transactionsRes, statsRes, categoriesRes] = await Promise.all([
-                fetch('/api/transactions'),
-                fetch('/api/transactions/stats'),
-                fetch('/api/transactions/categories')
+                fetch(`${API}/api/transactions`),
+                fetch(`${API}/api/transactions/stats`),
+                fetch(`${API}/api/transactions/categories`)
             ]);
 
             if (transactionsRes.ok) {
@@ -62,7 +64,7 @@ const ExpenseTracker = () => {
 
     const addTransaction = async (transactionData) => {
         try {
-            const response = await fetch('/api/transactions', {
+            const response = await fetch(`${API}/api/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -74,14 +76,15 @@ const ExpenseTracker = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to add transaction');
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || 'Failed to add transaction');
             }
 
             const newTransaction = await response.json();
             setTransactions(prev => [newTransaction, ...prev]);
             
             // Refresh stats
-            const statsRes = await fetch('/api/transactions/stats');
+            const statsRes = await fetch(`${API}/api/transactions/stats`);
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
@@ -96,13 +99,14 @@ const ExpenseTracker = () => {
 
     const addReceiptTransaction = async (transactionData) => {
         try {
-            const response = await fetch('/api/transactions/receipt', {
+            const response = await fetch(`${API}/api/transactions/receipt`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     ...transactionData,
+                    receiptUrl: transactionData.receiptUrl || 'manual-upload',
                     source: 'receipt'
                 }),
             });
@@ -115,7 +119,7 @@ const ExpenseTracker = () => {
             setTransactions(prev => [newTransaction, ...prev]);
             
             // Refresh stats
-            const statsRes = await fetch('/api/transactions/stats');
+            const statsRes = await fetch(`${API}/api/transactions/stats`);
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
@@ -130,12 +134,13 @@ const ExpenseTracker = () => {
 
     const addMultipleTransactionsFromReceipt = async (transactionsData) => {
         try {
-            const response = await fetch('/api/transactions/receipt/batch', {
+            const response = await fetch(`${API}/api/transactions/receipt/batch`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    receiptUrl: 'manual-upload',
                     transactions: transactionsData.map(t => ({
                         ...t,
                         source: 'receipt'
@@ -147,11 +152,12 @@ const ExpenseTracker = () => {
                 throw new Error('Failed to add multiple transactions');
             }
 
-            const newTransactions = await response.json();
+            const result = await response.json();
+            const newTransactions = Array.isArray(result) ? result : (result.savedTransactions || []);
             setTransactions(prev => [...newTransactions, ...prev]);
             
             // Refresh stats
-            const statsRes = await fetch('/api/transactions/stats');
+            const statsRes = await fetch(`${API}/api/transactions/stats`);
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
@@ -166,7 +172,7 @@ const ExpenseTracker = () => {
 
     const deleteTransaction = async (id) => {
         try {
-            const response = await fetch(`/api/transactions/${id}`, {
+            const response = await fetch(`${API}/api/transactions/${id}`, {
                 method: 'DELETE',
             });
 
@@ -177,7 +183,7 @@ const ExpenseTracker = () => {
             setTransactions(prev => prev.filter(t => t._id !== id));
             
             // Refresh stats
-            const statsRes = await fetch('/api/transactions/stats');
+            const statsRes = await fetch(`${API}/api/transactions/stats`);
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);

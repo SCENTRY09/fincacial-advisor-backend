@@ -31,7 +31,7 @@ const FileUpload = ({ onOcrText, onFileChange, onError }) => {
 
     const API_BASE = process.env.NODE_ENV === 'production'
       ? "https://financial-advisior.onrender.com"
-      : 'http://localhost:3000';  
+      : 'http://localhost:5000';
 
     try {
       console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);

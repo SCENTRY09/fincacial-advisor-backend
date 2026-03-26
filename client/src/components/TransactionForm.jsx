@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, Calendar, DollarSign, Tag, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
+const DEFAULT_CATEGORIES = {
+    income: ['Salary', 'Freelance', 'Business', 'Investment', 'Bonus', 'Other Income'],
+    expense: ['Food & Dining', 'Transportation', 'Housing', 'Utilities', 'Healthcare',
+        'Entertainment', 'Shopping', 'Education', 'Travel', 'Insurance', 'Other']
+};
+
 const TransactionForm = ({ addTransaction, categories }) => {
     const [transactionInfo, setTransactionInfo] = useState({
         type: 'expense',
@@ -42,7 +48,8 @@ const TransactionForm = ({ addTransaction, categories }) => {
         try {
             await addTransaction({
                 ...transactionInfo,
-                amount: parseFloat(transactionInfo.amount)
+                amount: parseFloat(transactionInfo.amount),
+                date: transactionInfo.date || new Date().toISOString().split('T')[0]
             });
             
             // Reset form
@@ -58,21 +65,15 @@ const TransactionForm = ({ addTransaction, categories }) => {
             alert('Transaction added successfully!');
         } catch (error) {
             console.error('Error adding transaction:', error);
-            alert('Failed to add transaction. Please try again.');
+            alert(`Failed to add transaction: ${error.message || 'Please try again.'}`);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Filter categories based on transaction type
-    const filteredCategories = categories.filter(cat => {
-        if (transactionInfo.type === 'income') {
-            return ['Salary', 'Freelance', 'Business', 'Investment', 'Bonus', 'Other Income'].includes(cat);
-        } else {
-            return ['Food & Dining', 'Transportation', 'Housing', 'Utilities', 'Healthcare', 
-                   'Entertainment', 'Shopping', 'Education', 'Travel', 'Insurance', 'Other'].includes(cat);
-        }
-    });
+    const filteredCategories = categories && categories.length > 0
+        ? categories.filter(cat => DEFAULT_CATEGORIES[transactionInfo.type]?.includes(cat))
+        : DEFAULT_CATEGORIES[transactionInfo.type];
 
     const isIncome = transactionInfo.type === 'income';
 
