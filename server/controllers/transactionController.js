@@ -719,6 +719,29 @@ function getRandomPaymentMethod() {
     return methods[Math.floor(Math.random() * methods.length)];
 }
 
+// Update a transaction
+exports.updateTransaction = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) return res.status(400).json({ message: 'Invalid ID' });
+
+        const { type, amount, date, category, notes, text, isRecurring, recurringFrequency } = req.body;
+        const parsedAmount = Number(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
+
+        const updated = await Transaction.findByIdAndUpdate(
+            id,
+            { type, amount: parsedAmount, date: date ? new Date(date) : undefined, category, notes, text: text?.trim(), isRecurring, recurringFrequency, updatedAt: Date.now() },
+            { new: true, runValidators: true }
+        );
+        if (!updated) return res.status(404).json({ message: 'Transaction not found' });
+        res.json(updated);
+    } catch (err) {
+        if (err.name === 'ValidationError') return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(', ') });
+        res.status(500).json({ message: 'Failed to update transaction' });
+    }
+};
+
 // Delete a transaction
 exports.deleteTransaction = async (req, res) => {
     try {

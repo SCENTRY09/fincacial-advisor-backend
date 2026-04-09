@@ -48,6 +48,8 @@ const meetingsRoutes = require('./routes/meetings');
 const authRoutes = require('./routes/authRoutes');
 const voiceNavigationRoutes = require('./routes/voiceNavigation');
 const { router: voiceAnalyticsRoutes } = require('./routes/voiceAnalytics');
+const khataRoutes = require('./routes/khata');
+const budgetRoutes = require('./routes/budget');
 
 const app = express();
 const http = require('http').createServer(app);
@@ -108,6 +110,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/khata-proofs", express.static(require('os').tmpdir() + '/khata-proofs'));
 
 // Passport middleware
 app.use(passport.initialize());
@@ -125,6 +128,8 @@ app.use('/api/transactions', transactionsRouter);
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/voice-navigation', voiceNavigationRoutes);
 app.use('/api/voice-analytics', voiceAnalyticsRoutes);
+app.use('/api/khata', khataRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 // Root route
 app.get("/", (req, res) => {

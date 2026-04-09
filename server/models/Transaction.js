@@ -85,15 +85,18 @@ const TransactionSchema = new mongoose.Schema({
         min: 0 
     },
     
-    // Metadata
-    createdAt: { 
-        type: Date, 
-        default: Date.now 
+    // Recurring transaction fields
+    isRecurring: { type: Boolean, default: false },
+    recurringFrequency: { 
+        type: String, 
+        enum: ['monthly', 'weekly', 'yearly'], 
+        default: 'monthly' 
     },
-    updatedAt: { 
-        type: Date, 
-        default: Date.now 
-    }
+    recurringParentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction', default: null },
+
+    // Metadata
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 }, {
     timestamps: true
 });
