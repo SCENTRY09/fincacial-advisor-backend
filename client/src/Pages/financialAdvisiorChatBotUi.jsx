@@ -22,7 +22,7 @@ export default function FinancialAdvisorChatbotUi() {
   const [advice, setAdvice] = useState(null);
   const [formValid, setFormValid] = useState(false);
   const [progress, setProgress] = useState(0);
-  const backend_url = process.env.REACT_APP_BACKEND_URL || "http://localhost:8080";
+  const backend_url = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
     fetch(`${backend_url}/api/business-types`)

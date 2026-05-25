@@ -13,10 +13,7 @@ router.get('/google/callback',
 );
 
 // Email/Password authentication routes
-router.post('/login', 
-  passport.authenticate('local', { session: false }),
-  authController.login
-);
+router.post('/login', authController.login);
 
 router.post('/register', authController.register);
 
