@@ -3,8 +3,11 @@ import { Mic, MicOff, User, Send, Loader2, Sparkles, Trash2, Copy, Check } from 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SimpleIcons from '../components/SimpleIcons';
+import apiService from '../services/apiService';
 
-const BACKEND = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+// Fallback for SimpleIcons if not available
+const SafeSimpleIcons = SimpleIcons || { Bot: null };
+
 const STORAGE_KEY = 'dhanSarthiChat';
 
 const WELCOME = {
@@ -24,23 +27,84 @@ const SUGGESTIONS = [
 ];
 
 export default function Chatbot({ transactions = [], stats = null }) {
+  // Safely initialize messages from localStorage
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [WELCOME];
-    } catch { return [WELCOME]; }
+      if (saved && typeof saved === 'string') {
+        const parsed = JSON.parse(saved);
+        // Validate parsed data is an array
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('❌ Error loading chat history:', e);
+      // Clear corrupted data
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (err) {
+        console.error('Error clearing corrupted chat:', err);
+      }
+    }
+    return [WELCOME];
   });
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [error, setError] = useState(null);
+  const [apiReady, setApiReady] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // Persist chat to localStorage
+  // Validate API service on mount
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    try {
+      if (apiService && apiService.financialAdvice && apiService.financialAdvice.chat) {
+        console.log('✅ API service validated successfully');
+        setApiReady(true);
+      } else {
+        console.error('❌ API service not properly initialized');
+        setError('API service not available. Please refresh the page.');
+        setApiReady(false);
+      }
+    } catch (err) {
+      console.error('❌ Error validating API service:', err);
+      setError('Failed to initialize API service.');
+      setApiReady(false);
+    }
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Persist chat to localStorage with error handling
+  useEffect(() => {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return;
+    }
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        console.warn('⚠️ localStorage quota exceeded, clearing old messages');
+        try {
+          // Keep only last 20 messages
+          const recentMessages = messages.slice(-20);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(recentMessages));
+        } catch (err) {
+          console.error('❌ Error saving chat history:', err);
+        }
+      } else {
+        console.error('❌ Error saving chat history:', e);
+      }
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -49,99 +113,253 @@ export default function Chatbot({ transactions = [], stats = null }) {
 
   // Build financial context from transactions
   const buildContext = useCallback(() => {
-    if (!stats && transactions.length === 0) return '';
-    const income = stats?.totalIncome || 0;
-    const expense = stats?.totalExpense || 0;
-    const balance = stats?.balance || 0;
-    const topCats = stats?.topCategories?.slice(0, 3).map(c => `${c.category} ₹${c.amount}`).join(', ') || '';
-    return `\n\n[User's financial snapshot: Monthly income ₹${income.toLocaleString()}, expenses ₹${expense.toLocaleString()}, balance ₹${balance.toLocaleString()}${topCats ? `, top spending: ${topCats}` : ''}. Use this context to give personalized advice when relevant.]`;
+    try {
+      // Safely check if we have valid data
+      if (!stats && (!Array.isArray(transactions) || transactions.length === 0)) {
+        return '';
+      }
+
+      const income = stats?.totalIncome || 0;
+      const expense = stats?.totalExpense || 0;
+      const balance = stats?.balance || 0;
+      
+      // Safely access topCategories
+      const topCats = Array.isArray(stats?.topCategories)
+        ? stats.topCategories.slice(0, 3).map(c => `${c?.category || 'Unknown'} ₹${c?.amount || 0}`).join(', ')
+        : '';
+
+      return `\n\n[User's financial snapshot: Monthly income ₹${income.toLocaleString()}, expenses ₹${expense.toLocaleString()}, balance ₹${balance.toLocaleString()}${topCats ? `, top spending: ${topCats}` : ''}. Use this context to give personalized advice when relevant.]`;
+    } catch (err) {
+      console.error('❌ Error building financial context:', err);
+      return '';
+    }
   }, [transactions, stats]);
 
   const sendMessage = async (text) => {
-    const msg = text.trim();
-    if (!msg || loading) return;
+    const msg = text?.trim?.() || '';
+    if (!msg || loading || !apiReady) {
+      if (!apiReady) {
+        setError('API service not ready. Please refresh the page.');
+      }
+      return;
+    }
 
-    const userMsg = { id: Date.now(), role: 'user', content: msg, timestamp: new Date().toISOString() };
-    setMessages(prev => [...prev, userMsg]);
+    // Clear any previous errors
+    setError(null);
+
+    // Create user message with safe structure
+    const userMsg = {
+      id: Date.now(),
+      role: 'user',
+      content: msg,
+      timestamp: new Date().toISOString()
+    };
+
+    // Add user message to state
+    setMessages(prev => {
+      if (!Array.isArray(prev)) return [WELCOME, userMsg];
+      return [...prev, userMsg];
+    });
+
     setInput('');
     setLoading(true);
 
     try {
-      const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
+      // Validate and prepare message history
+      const history = Array.isArray(messages)
+        ? messages
+            .slice(-10)
+            .map(m => ({
+              role: m?.role || 'user',
+              content: m?.content || ''
+            }))
+            .filter(m => m.role && m.content)
+        : [];
+
       const contextualMsg = msg + buildContext();
 
-      const res = await fetch(`${BACKEND}/api/financial-advice/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: contextualMsg, conversationHistory: history })
+      console.log('📤 Sending chat message to API with history length:', history.length);
+
+      // Call API with proper error handling
+      if (!apiService?.financialAdvice?.chat) {
+        throw new Error('API service not properly initialized');
+      }
+
+      const response = await apiService.financialAdvice.chat(contextualMsg, history);
+
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) {
+        console.warn('⚠️ Component unmounted, skipping state update');
+        return;
+      }
+
+      // Validate response structure
+      if (!response || !response.data) {
+        throw new Error('Invalid response structure from server');
+      }
+
+      const botResponse = response.data?.response || response.data?.message;
+      if (!botResponse || typeof botResponse !== 'string') {
+        throw new Error('No valid response content from server');
+      }
+
+      console.log('✅ Received chat response from API');
+
+      // Add bot response to messages
+      setMessages(prev => {
+        if (!Array.isArray(prev)) return [WELCOME];
+        return [...prev, {
+          id: Date.now() + 1,
+          role: 'bot',
+          content: botResponse,
+          timestamp: response.data?.timestamp || new Date().toISOString()
+        }];
       });
+    } catch (error) {
+      console.error('❌ Chat error:', error);
 
-      if (!res.ok) throw new Error('Server error');
-      const data = await res.json();
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) {
+        console.warn('⚠️ Component unmounted, skipping error state update');
+        return;
+      }
 
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'bot',
-        content: data.response,
-        timestamp: data.timestamp || new Date().toISOString()
-      }]);
-    } catch {
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'bot',
-        content: "I'm having trouble connecting right now. Please try again in a moment. 🙏",
-        timestamp: new Date().toISOString()
-      }]);
+      // Determine error message based on error type
+      let errorMessage = "I'm having trouble connecting right now. Please try again in a moment. 🙏";
+
+      if (error.response?.status === 401) {
+        errorMessage = "Your session has expired. Please log in again. 🔐";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Invalid message format. Please try again. 📝";
+      } else if (error.response?.status === 500) {
+        errorMessage = "Server error. Please try again later. ⚠️";
+      } else if (error.response?.status === 429) {
+        errorMessage = "Too many requests. Please wait a moment before trying again. ⏱️";
+      } else if (error.message?.includes('Network')) {
+        errorMessage = "Network connection error. Please check your internet. 🌐";
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = "Request timed out. Please try again. ⏱️";
+      }
+
+      setError(errorMessage);
+
+      // Add error message to chat
+      setMessages(prev => {
+        if (!Array.isArray(prev)) return [WELCOME];
+        return [...prev, {
+          id: Date.now() + 1,
+          role: 'bot',
+          content: errorMessage,
+          timestamp: new Date().toISOString()
+        }];
+      });
     } finally {
-      setLoading(false);
-      inputRef.current?.focus();
+      if (isMountedRef.current) {
+        setLoading(false);
+        // Focus input after response
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            inputRef.current?.focus();
+          }
+        }, 100);
+      }
     }
   };
 
-  // Real Web Speech API voice input
-  const toggleVoice = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Voice input is not supported in your browser. Please use Chrome.');
+  // Real Web Speech API voice input with proper error handling
+  const toggleVoice = useCallback(() => {
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setError('Voice input is not supported in your browser. Please use Chrome or Edge.');
+        return;
+      }
+
+      if (recording) {
+        recognitionRef.current?.stop();
+        setRecording(false);
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        if (isMountedRef.current) {
+          setRecording(true);
+          setError(null);
+        }
+      };
+
+      recognition.onend = () => {
+        if (isMountedRef.current) {
+          setRecording(false);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('❌ Speech recognition error:', event.error);
+        if (isMountedRef.current) {
+          setRecording(false);
+          
+          let errorMsg = 'Voice input error. Please try again.';
+          if (event.error === 'no-speech') {
+            errorMsg = 'No speech detected. Please try again.';
+          } else if (event.error === 'network') {
+            errorMsg = 'Network error during voice input.';
+          }
+          setError(errorMsg);
+        }
+      };
+
+      recognition.onresult = (e) => {
+        if (isMountedRef.current && e.results && e.results.length > 0) {
+          const transcript = e.results[0]?.[0]?.transcript;
+          if (transcript) {
+            sendMessage(transcript);
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('❌ Error initializing voice recognition:', err);
+      if (isMountedRef.current) {
+        setError('Failed to initialize voice input.');
+        setRecording(false);
+      }
+    }
+  }, [recording, sendMessage]);
+
+  const copyMessage = useCallback((id, content) => {
+    if (!content || typeof content !== 'string') {
+      setError('Unable to copy message.');
       return;
     }
 
-    if (recording) {
-      recognitionRef.current?.stop();
-      setRecording(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => setRecording(true);
-    recognition.onend = () => setRecording(false);
-    recognition.onerror = () => setRecording(false);
-    recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      sendMessage(transcript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
-
-  const copyMessage = (id, content) => {
     navigator.clipboard.writeText(content).then(() => {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
+    }).catch(err => {
+      console.error('❌ Error copying message:', err);
+      setError('Failed to copy message.');
     });
-  };
+  }, []);
 
-  const clearChat = () => {
+  const clearChat = useCallback(() => {
     if (window.confirm('Clear all chat history?')) {
       setMessages([WELCOME]);
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (err) {
+        console.error('Error clearing chat:', err);
+      }
+      setError(null);
     }
-  };
+  }, []);
 
   const fmt = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -154,7 +372,11 @@ export default function Chatbot({ transactions = [], stats = null }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                <SimpleIcons.Bot className="w-5 h-5 text-white" />
+                {SafeSimpleIcons?.Bot ? (
+                  <SafeSimpleIcons.Bot className="w-5 h-5 text-white" />
+                ) : (
+                  <span className="text-white text-lg">🤖</span>
+                )}
               </div>
               <div>
                 <h1 className="text-sm font-bold flex items-center gap-1">
@@ -177,6 +399,22 @@ export default function Chatbot({ transactions = [], stats = null }) {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="px-3 py-2 bg-red-50 border-b border-red-200 flex items-start gap-2">
+            <span className="text-red-600 text-lg flex-shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700 flex-shrink-0 text-lg"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gradient-to-b from-gray-50 to-white"
           style={{ scrollbarWidth: 'none' }}>
@@ -185,55 +423,79 @@ export default function Chatbot({ transactions = [], stats = null }) {
             .fade-up{animation:fadeUp 0.3s ease both}`}
           </style>
 
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex items-start gap-2 fade-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
-              {msg.role === 'bot' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow">
-                  <SimpleIcons.Bot className="w-4 h-4 text-white" />
-                </div>
-              )}
+          {Array.isArray(messages) && messages.length > 0 ? (
+            messages.map((msg) => {
+              // Safety check for message structure
+              if (!msg || typeof msg.id === 'undefined' || !msg.role || msg.content === undefined) {
+                console.warn('⚠️ Invalid message structure:', msg);
+                return null;
+              }
 
-              <div className={`max-w-[85%] group relative ${msg.role === 'user'
-                ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl rounded-tr-sm px-3 py-2'
-                : 'bg-white border border-green-100 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm'}`}>
-
-                {msg.role === 'bot' ? (
-                  <div className="text-xs text-gray-800 prose prose-sm max-w-none
-                    prose-headings:text-green-700 prose-headings:font-bold prose-headings:text-sm
-                    prose-strong:text-gray-900 prose-li:text-gray-700 prose-p:leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-xs text-white">{msg.content}</p>
-                )}
-
-                <div className="flex items-center justify-between mt-1 gap-2">
-                  <p className={`text-xs ${msg.role === 'user' ? 'text-green-100' : 'text-gray-400'}`}>
-                    {fmt(msg.timestamp)}
-                  </p>
+              return (
+                <div key={msg.id} className={`flex items-start gap-2 fade-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
                   {msg.role === 'bot' && (
-                    <button onClick={() => copyMessage(msg.id, msg.content)}
-                      className="opacity-0 group-hover:opacity-100 transition text-gray-400 hover:text-green-600 p-0.5">
-                      {copiedId === msg.id
-                        ? <Check className="w-3 h-3 text-green-500" />
-                        : <Copy className="w-3 h-3" />}
-                    </button>
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow">
+                      {SafeSimpleIcons?.Bot ? (
+                        <SafeSimpleIcons.Bot className="w-4 h-4 text-white" />
+                      ) : (
+                        <span className="text-white text-sm">🤖</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={`max-w-[85%] group relative ${msg.role === 'user'
+                    ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl rounded-tr-sm px-3 py-2'
+                    : 'bg-white border border-green-100 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm'}`}>
+
+                    {msg.role === 'bot' ? (
+                      <div className="text-xs text-gray-800 prose prose-sm max-w-none
+                        prose-headings:text-green-700 prose-headings:font-bold prose-headings:text-sm
+                        prose-strong:text-gray-900 prose-li:text-gray-700 prose-p:leading-relaxed">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content || ''}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-white">{msg.content || ''}</p>
+                    )}
+
+                    <div className="flex items-center justify-between mt-1 gap-2">
+                      <p className={`text-xs ${msg.role === 'user' ? 'text-green-100' : 'text-gray-400'}`}>
+                        {fmt(msg.timestamp)}
+                      </p>
+                      {msg.role === 'bot' && (
+                        <button onClick={() => copyMessage(msg.id, msg.content)}
+                          className="opacity-0 group-hover:opacity-100 transition text-gray-400 hover:text-green-600 p-0.5">
+                          {copiedId === msg.id
+                            ? <Check className="w-3 h-3 text-green-500" />
+                            : <Copy className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {msg.role === 'user' && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0 shadow">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
                   )}
                 </div>
-              </div>
-
-              {msg.role === 'user' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0 shadow">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-              )}
+              );
+            })
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              <p>No messages yet. Start a conversation!</p>
             </div>
-          ))}
+          )}
 
           {loading && (
             <div className="flex items-start gap-2 fade-up">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow animate-pulse">
-                <SimpleIcons.Bot className="w-4 h-4 text-white" />
+                {SafeSimpleIcons?.Bot ? (
+                  <SafeSimpleIcons.Bot className="w-4 h-4 text-white" />
+                ) : (
+                  <span className="text-white text-sm">🤖</span>
+                )}
               </div>
               <div className="bg-white border border-green-100 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
                 <div className="flex items-center gap-2">
@@ -272,7 +534,7 @@ export default function Chatbot({ transactions = [], stats = null }) {
 
           {/* Quick suggestions */}
           <div className="mt-2 flex flex-wrap gap-1">
-            {SUGGESTIONS.map((s) => (
+            {Array.isArray(SUGGESTIONS) && SUGGESTIONS.map((s) => (
               <button key={s.text} onClick={() => sendMessage(s.text)}
                 disabled={loading || recording}
                 className="px-2 py-0.5 text-xs bg-white border border-green-200 rounded-full hover:bg-green-50 hover:border-green-400 transition disabled:opacity-40 whitespace-nowrap">

@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(globalState.isAuthenticated);
   const [user, setUser] = useState(globalState.user);
   const [loading, setLoading] = useState(globalState.loading);
+  const [verificationAttempted, setVerificationAttempted] = useState(false);
 
   // Sync local state with global state
   useEffect(() => {
@@ -137,6 +138,7 @@ export const AuthProvider = ({ children }) => {
         console.log('✅ Server verification successful');
         setUser(response.data.user);
         setIsAuthenticated(true);
+        setLoading(false);
         localStorage.setItem("user", JSON.stringify(response.data.user));
         // Update global state
         setAuthState({
@@ -156,15 +158,25 @@ export const AuthProvider = ({ children }) => {
         console.log('❌ 401 Unauthorized - clearing auth state');
         clearAuth();
       } else {
-        console.log('⚠️ Network or server error - keeping auth state intact');
-        // Keep auth state intact on network errors
+        console.log('⚠️ Network or server error - keeping auth state intact, setting loading to false');
+        // Keep auth state intact on network errors but stop loading
         setLoading(false);
+        // Update global state to stop loading
+        setAuthState({
+          user: user,
+          isAuthenticated: isAuthenticated,
+          loading: false
+        });
       }
     }
-  }, []);
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
-    // Only verify on initial mount, not on every render
+    // Only verify once on initial mount
+    if (verificationAttempted) return;
+    
+    setVerificationAttempted(true);
+    
     const authData = getAuthData();
     
     if (authData.isAuthenticated) {
@@ -184,7 +196,7 @@ export const AuthProvider = ({ children }) => {
         loading: false
       });
     }
-  }, []);
+  }, [verificationAttempted, verifyAuth]);
 
   // Add listeners for auth state changes
   useEffect(() => {
