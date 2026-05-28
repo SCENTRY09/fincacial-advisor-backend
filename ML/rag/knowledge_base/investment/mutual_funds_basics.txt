@@ -1,0 +1,233 @@
+TITLE: Mutual Funds Basics - Beginner's Guide
+
+SOURCE: AMFI (Association of Mutual Funds in India)
+
+SCRAPED: 2026-05-27 10:30:00
+
+================================================================================
+
+MUTUAL FUNDS - COMPLETE BEGINNER'S GUIDE
+
+What is a Mutual Fund?
+A mutual fund is an investment vehicle that pools money from multiple investors to purchase a diversified portfolio of stocks, bonds, or other securities. Professional fund managers manage the portfolio.
+
+KEY CONCEPTS:
+
+1. HOW MUTUAL FUNDS WORK
+- Investors contribute money
+- Fund manager invests in securities
+- Returns distributed to investors
+- Expenses deducted from returns
+- Transparent pricing (NAV-based)
+
+2. TYPES OF MUTUAL FUNDS
+
+Equity Funds:
+- Invest in stocks
+- Higher risk, higher returns
+- Suitable for long-term investors
+- Growth potential
+
+Debt Funds:
+- Invest in bonds and fixed income
+- Lower risk, moderate returns
+- Suitable for conservative investors
+- Regular income
+
+Balanced Funds:
+- Mix of stocks and bonds
+- Moderate risk and returns
+- Suitable for balanced investors
+- Diversified portfolio
+
+Liquid Funds:
+- Invest in short-term securities
+- Very low risk
+- Quick liquidity
+- Suitable for emergency funds
+
+3. ADVANTAGES OF MUTUAL FUNDS
+- Professional management
+- Diversification
+- Low minimum investment
+- Liquidity (easy to buy/sell)
+- Transparency
+- Regulated by SEBI
+- Tax-efficient options
+
+4. DISADVANTAGES OF MUTUAL FUNDS
+- Management fees
+- Market risk
+- No guaranteed returns
+- Complexity for beginners
+- Timing risk
+- Exit load charges
+
+5. MUTUAL FUND TERMINOLOGY
+
+NAV (Net Asset Value):
+- Price per unit of mutual fund
+- Calculated daily
+- Based on portfolio value
+- Determines investment amount
+
+AUM (Assets Under Management):
+- Total value of fund's portfolio
+- Indicates fund size
+- Larger AUM = more stable
+- Affects fund performance
+
+Expense Ratio:
+- Annual cost of managing fund
+- Expressed as percentage
+- Deducted from returns
+- Lower is better
+
+Exit Load:
+- Charge for early redemption
+- Percentage of redemption amount
+- Waived after holding period
+- Varies by fund
+
+6. INVESTMENT OPTIONS
+
+Lump Sum Investment:
+- Invest entire amount at once
+- Suitable for large amounts
+- Timing risk
+- Simple process
+
+Systematic Investment Plan (SIP):
+- Regular monthly investments
+- Rupee cost averaging
+- Reduces timing risk
+- Builds discipline
+
+7. RISK CATEGORIES
+
+Low Risk:
+- Liquid funds
+- Debt funds
+- Suitable for conservative investors
+- Lower returns
+
+Medium Risk:
+- Balanced funds
+- Hybrid funds
+- Suitable for moderate investors
+- Moderate returns
+
+High Risk:
+- Equity funds
+- Small-cap funds
+- Suitable for aggressive investors
+- Higher returns potential
+
+8. FUND SELECTION CRITERIA
+
+Performance:
+- 3-year, 5-year returns
+- Comparison with benchmark
+- Consistency of returns
+- Risk-adjusted returns
+
+Fund Manager:
+- Experience and track record
+- Investment philosophy
+- Consistency
+- Reputation
+
+Fund House:
+- Credibility and size
+- Regulatory compliance
+- Customer service
+- Fund variety
+
+Expense Ratio:
+- Lower is better
+- Compare with peers
+- Impact on returns
+- Transparency
+
+9. TAX IMPLICATIONS
+
+Equity Funds:
+- Long-term (>1 year): 10% tax (above Rs. 1 lakh)
+- Short-term (<1 year): Slab rate
+- Dividend: Tax-free in hand
+
+Debt Funds:
+- Long-term (>3 years): 20% with indexation
+- Short-term (<3 years): Slab rate
+- Dividend: Tax-free in hand
+
+10. INVESTMENT STRATEGY
+
+For Beginners:
+- Start with balanced funds
+- Use SIP for regular investing
+- Invest for 5+ years
+- Diversify across categories
+
+For Experienced:
+- Mix of equity and debt
+- Active fund selection
+- Regular portfolio review
+- Tax optimization
+
+11. COMMON MISTAKES TO AVOID
+- Chasing past performance
+- Frequent buying/selling
+- Ignoring expense ratio
+- Not diversifying
+- Panic selling during downturns
+- Investing without research
+
+12. MUTUAL FUND CALCULATION EXAMPLE
+
+Investment: Rs. 10,000 per month via SIP
+Duration: 5 years (60 months)
+Expected Return: 12% per annum
+Total Investment: Rs. 6,00,000
+Expected Value: Approximately Rs. 8,50,000
+Gain: Approximately Rs. 2,50,000
+
+13. WHEN TO INVEST IN MUTUAL FUNDS
+- Long-term financial goals
+- Retirement planning
+- Education planning
+- Wealth creation
+- Emergency fund (liquid funds)
+
+14. WHEN NOT TO INVEST
+- Short-term needs (< 1 year)
+- Emergency funds (use savings)
+- Debt repayment
+- Uncertain income
+- High-risk tolerance not suitable
+
+15. MONITORING YOUR INVESTMENT
+- Review quarterly
+- Compare with benchmark
+- Check expense ratio
+- Monitor fund manager changes
+- Rebalance portfolio annually
+
+GETTING STARTED:
+1. Open demat account (optional but recommended)
+2. Choose fund house
+3. Select suitable funds
+4. Start with SIP
+5. Monitor regularly
+6. Review and rebalance
+
+RESOURCES:
+- AMFI website: www.amfiindia.com
+- SEBI website: www.sebi.gov.in
+- Fund house websites
+- Financial advisors
+- Online investment platforms
+
+================================================================================
+
+END OF DOCUMENT
