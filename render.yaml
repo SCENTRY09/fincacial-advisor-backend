@@ -2,6 +2,7 @@ services:
   - type: web
     name: financial-advisor-backend
     env: node
+    nodeVersion: 20.14.0
     plan: standard
     region: oregon
     rootDir: server
