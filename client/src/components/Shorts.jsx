@@ -52,7 +52,7 @@ const YouTubeShorts = () => {
     return TOPICS[randomIndex];
   };
 
-  const fetchShorts = async () => {
+  const fetchShorts = useCallback(async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
@@ -114,7 +114,7 @@ const YouTubeShorts = () => {
       setLoading(false);
       loadingRef.current = false;
     }
-  };
+  }, [pageToken, YOUTUBE_API_KEY, getRandomTopic, setPageToken, setShorts, setLoading, setError, loadingRef]);
 
   const initializePlayer = (videoId, index) => {
     if (!window.YT || !window.YT.Player) return;

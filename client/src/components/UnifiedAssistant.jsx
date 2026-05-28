@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import SimpleIcons from './SimpleIcons';
 import { useNavigate } from 'react-router-dom';
 
@@ -92,13 +92,13 @@ const UnifiedAssistant = () => {
   };
 
   // Voice functions
-  const speakResponse = (text) => {
+  const speakResponse = useCallback((text) => {
     if (isMuted || !synthesisRef.current) return;
     const utterance = new SpeechSynthesisUtterance(text);
     synthesisRef.current.speak(utterance);
-  };
+  }, [isMuted, synthesisRef]);
 
-  const processVoiceCommand = (command) => {
+  const processVoiceCommand = useCallback((command) => {
     const matchedCommand = Object.keys(voiceCommands).find(cmd => 
       command.includes(cmd) || cmd.includes(command)
     );
@@ -109,7 +109,7 @@ const UnifiedAssistant = () => {
       } else {
         speakResponse("Not recognized. Say 'help' for commands.");
     }
-  };
+  }, [voiceCommands, speakResponse]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -149,7 +149,7 @@ const UnifiedAssistant = () => {
     if ('speechSynthesis' in window) {
       synthesisRef.current = window.speechSynthesis;
     }
-  }, []);
+  }, [processVoiceCommand]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -170,6 +170,9 @@ const UnifiedAssistant = () => {
         break;
       case 'youtube':
         window.open('https://www.youtube.com', '_blank');
+        break;
+      default:
+        console.log('Unknown option:', option);
         break;
     }
   };

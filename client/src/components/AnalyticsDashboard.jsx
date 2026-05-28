@@ -3,7 +3,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, ReferenceLine
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
 

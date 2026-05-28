@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
@@ -13,21 +13,21 @@ export default function BudgetManager() {
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState(null);
 
-    useEffect(() => { fetchBudgets(); }, [month]);
-
-    const showToast = (msg, type = 'success') => {
+    const showToast = useCallback((msg, type = 'success') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3000);
-    };
+    }, []);
 
-    const fetchBudgets = async () => {
+    const fetchBudgets = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`${API}/api/budgets?month=${month}`);
             setBudgets(await res.json());
         } catch { showToast('Failed to load budgets', 'error'); }
         finally { setLoading(false); }
-    };
+    }, [month, showToast]);
+
+    useEffect(() => { fetchBudgets(); }, [fetchBudgets]);
 
     const saveBudget = async () => {
         if (!form.category || !form.monthlyLimit || form.monthlyLimit <= 0)

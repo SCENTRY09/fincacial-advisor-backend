@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, ArrowLeft, TrendingUp, TrendingDown, Users, Paperclip, X, FileText, Eye, CheckCircle, MessageCircle, Share2, RefreshCw, Search, Edit2, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, Trash2, ArrowLeft, TrendingUp, TrendingDown, Users, Paperclip, X, FileText, Eye, CheckCircle, MessageCircle, Share2, Search, Edit2, Check } from 'lucide-react';
 
 const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
 
@@ -26,21 +26,21 @@ export default function KhataBook() {
     const [editingParty, setEditingParty] = useState(null);
     const [editForm, setEditForm] = useState({ name: '', phone: '' });
 
-    useEffect(() => { fetchParties(); }, []);
-
-    const showToast = (msg, type = 'success') => {
+    const showToast = useCallback((msg, type = 'success') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3000);
-    };
+    }, []);
 
-    const fetchParties = async () => {
+    const fetchParties = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`${API}/api/khata`);
             setParties(await res.json());
         } catch { showToast('Failed to load', 'error'); }
         finally { setLoading(false); }
-    };
+    }, [showToast]);
+
+    useEffect(() => { fetchParties(); }, [fetchParties]);
 
     const fetchParty = async (id) => {
         const res = await fetch(`${API}/api/khata/${id}`);
