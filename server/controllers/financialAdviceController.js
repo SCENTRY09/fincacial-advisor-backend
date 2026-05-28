@@ -19,9 +19,12 @@ function callRAGPipeline(userProfile) {
     // Path to the RAG pipeline subprocess wrapper
     // ML folder is now inside server/ so path is relative to server/
     const ragSubprocessPath = path.join(__dirname, '../ML/rag/retrieval/rag_subprocess.py');
-    
+
+    // Use 'python3' on Linux/Render, 'python' on Windows
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
     // Spawn Python process — pass current environment so GEMINI_API_KEY is inherited
-    const python = spawn('python', [ragSubprocessPath], { env: process.env });
+    const python = spawn(pythonCmd, [ragSubprocessPath], { env: process.env });
     
     let output = '';
     let errorOutput = '';

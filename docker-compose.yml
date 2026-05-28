@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: financial-advisor-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: financial_advisor
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - financial-advisor-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: financial-advisor-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      MONGO_URL: mongodb://admin:password@mongodb:27017/financial_advisor?authSource=admin
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: http://localhost:3000
+      PORT: 5000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - financial-advisor-network
+    volumes:
+      - ./ML:/app/../ML
+      - ./server:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (optional - for local development)
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: financial-advisor-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://backend:5000
+      REACT_APP_ENV: production
+    depends_on:
+      - backend
+    networks:
+      - financial-advisor-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  financial-advisor-network:
+    driver: bridge

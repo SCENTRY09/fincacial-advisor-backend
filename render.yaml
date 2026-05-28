@@ -1,0 +1,44 @@
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Node.js Backend + Python RAG Pipeline (combined on one instance)
+  # rootDir: server/
+  # Python subprocess (rag_subprocess.py) runs inside this same service
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: financial-advisor-backend
+    env: node
+    plan: standard
+    region: oregon
+    rootDir: server
+
+    buildCommand: >-
+      npm install &&
+      pip3.11 install --upgrade pip &&
+      pip3.11 install -r requirements.txt
+
+    startCommand: node index.js
+
+    healthCheckPath: /ping
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MONGO_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false

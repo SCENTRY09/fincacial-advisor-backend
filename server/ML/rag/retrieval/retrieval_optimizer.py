@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 class RetrievalOptimizer:
     """Optimizes retrieval results for better quality."""
 
-    # Relevance threshold - adjusted for all-MiniLM-L6-v2 typical scores (0.45-0.75)
-    RELEVANCE_THRESHOLD = 0.45  # Lowered from 0.60 to prevent over-filtering
+    # Relevance threshold — lowered to 0.40 to allow more diverse chunks through
+    RELEVANCE_THRESHOLD = 0.40
 
     # Maximum chunks to retrieve per query
-    MAX_CHUNKS_PER_QUERY = 5
+    MAX_CHUNKS_PER_QUERY = 8
 
     # Category priority for diversity
     CATEGORY_PRIORITY = {
@@ -103,7 +103,7 @@ class RetrievalOptimizer:
         return deduplicated
 
     @staticmethod
-    def prioritize_diversity(chunks: List[Dict], max_chunks: int = 5) -> List[Dict]:
+    def prioritize_diversity(chunks: List[Dict], max_chunks: int = 12) -> List[Dict]:
         """
         Prioritize diversity across categories.
 
@@ -145,7 +145,7 @@ class RetrievalOptimizer:
         return selected[:max_chunks]
 
     @staticmethod
-    def optimize_retrieval(chunks: List[Dict], max_chunks: int = 5) -> Tuple[List[Dict], Dict]:
+    def optimize_retrieval(chunks: List[Dict], max_chunks: int = 12) -> Tuple[List[Dict], Dict]:
         """
         Optimize retrieval results through filtering, deduplication, and diversity.
         NEVER returns empty results - always has fallback.
@@ -341,8 +341,8 @@ Behavior Confidence: {predictions.get('behavior_confidence', 0):.1%}"""
                 relevance = chunk.get('relevance_score', 0)
                 text = chunk.get('text', '')
 
-                # Limit text to 300 chars per chunk
-                text_preview = text[:300] + "..." if len(text) > 300 else text
+                # Limit text to 500 chars per chunk for richer context
+                text_preview = text[:500] + "..." if len(text) > 500 else text
 
                 sections.append(f"\n[{i}] {source} (Relevance: {relevance:.2f})")
                 sections.append(f"{text_preview}")

@@ -26,7 +26,7 @@ const INVESTMENT_EXP_OPTIONS = [
 
 const FINANCIAL_KNOWLEDGE_OPTIONS = ["Beginner", "Intermediate", "Advanced", "Expert"];
 
-const TOTAL_FIELDS = 18; // used for progress calculation
+const TOTAL_FIELDS = 17; // updated after removing business_type field
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
@@ -51,14 +51,13 @@ const INITIAL_FORM = {
   goalType: "",
   goalDuration: "",
   targetAmount: "",
+  financialGoalDescription: "",   // replaces free-text business_type + financial_goal
   // Section 5 — Risk
   riskTolerance: "medium",
   investmentExperience: "",
   financialKnowledge: "",
-  // Legacy fields kept for API compatibility
-  business_type: "",
+  // Legacy fields kept for API compatibility (auto-derived, not shown in UI)
   existing_savings: "",
-  financial_goal: "",
   risk_tolerance: "medium",
 };
 
@@ -108,9 +107,7 @@ function validateForm(f) {
   if (!f.investmentExperience) errs.investmentExperience = "Investment experience is required";
   if (!f.financialKnowledge) errs.financialKnowledge = "Financial knowledge level is required";
 
-  // Legacy
-  if (!f.business_type.trim()) errs.business_type = "Business type is required";
-  if (!f.financial_goal.trim()) errs.financial_goal = "Financial goal description is required";
+  // Goal description (optional — auto-generated if blank)
 
   return errs;
 }
@@ -206,21 +203,12 @@ export default function FinancialAdvisorChatbotUi() {
   const [tempIncome, setTempIncome] = useState(user?.monthlyIncome || "");
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [businessTypes, setBusinessTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState(null);
   const [progress, setProgress] = useState(0);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const backend_url = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
-
-  // Fetch business types
-  useEffect(() => {
-    fetch(`${backend_url}/api/business-types`)
-      .then(r => r.json())
-      .then(d => setBusinessTypes(d.business_types || []))
-      .catch(e => console.error("Error fetching business types:", e));
-  }, [backend_url]);
 
   // Sync income from user profile
   useEffect(() => {
@@ -329,7 +317,7 @@ export default function FinancialAdvisorChatbotUi() {
         goalType: formData.goalType,
         goalDuration: formData.goalDuration,
         targetAmount: Number(formData.targetAmount) || 0,
-        financial_goal: formData.financial_goal ||
+        financial_goal: formData.financialGoalDescription ||
           `${formData.goalType} in ${formData.goalDuration} with target ₹${formData.targetAmount}`,
 
         // ── Section 5: Risk ──
@@ -337,8 +325,8 @@ export default function FinancialAdvisorChatbotUi() {
         investmentExperience: formData.investmentExperience,
         financialKnowledge: formData.financialKnowledge,
 
-        // ── Legacy fields ──
-        business_type: formData.business_type,
+        // ── Legacy fields (auto-derived, no longer shown in UI) ──
+        business_type: formData.occupation,   // map occupation → business_type for API compat
         existing_savings: Number(formData.savings) || 0,
       };
 
@@ -375,66 +363,130 @@ export default function FinancialAdvisorChatbotUi() {
   // ── Advice formatting (unchanged from original) ──────────────────────────────
   const formatAdviceContent = (text) => {
     if (!text) return null;
-    const cleanText = text
-      .replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "")
-      .replace(/#{1,6}\s/g, "").replace(/^[-_]{3,}$/gm, "");
-    const sections = cleanText.split(/\n\d+\./g).filter(s => s.trim()).map(s => s.trim());
-    return sections.map((section) => {
-      const lines = section.split("\n");
-      const titleLine = lines[0].trim();
-      const content = lines.slice(1).join("\n").trim();
-      let icon = "📋", colorClass = "from-green-500 to-emerald-600", bgClass = "from-green-50 to-emerald-50";
-      const t = titleLine.toLowerCase();
-      if (t.includes("snapshot") || t.includes("health")) { icon = "📊"; colorClass = "from-blue-500 to-cyan-600"; bgClass = "from-blue-50 to-cyan-50"; }
-      else if (t.includes("goal") || t.includes("strategy")) { icon = "🎯"; colorClass = "from-purple-500 to-pink-600"; bgClass = "from-purple-50 to-pink-50"; }
-      else if (t.includes("budget")) { icon = "💰"; colorClass = "from-yellow-500 to-orange-600"; bgClass = "from-yellow-50 to-orange-50"; }
-      else if (t.includes("investment") || t.includes("roadmap")) { icon = "📈"; colorClass = "from-green-500 to-teal-600"; bgClass = "from-green-50 to-teal-50"; }
-      else if (t.includes("emergency") || t.includes("savings")) { icon = "🏦"; colorClass = "from-indigo-500 to-blue-600"; bgClass = "from-indigo-50 to-blue-50"; }
-      else if (t.includes("risk") || t.includes("protection")) { icon = "⚠️"; colorClass = "from-red-500 to-pink-600"; bgClass = "from-red-50 to-pink-50"; }
-      else if (t.includes("tax")) { icon = "💡"; colorClass = "from-amber-500 to-yellow-600"; bgClass = "from-amber-50 to-yellow-50"; }
-      else if (t.includes("business")) { icon = "🏢"; colorClass = "from-teal-500 to-green-600"; bgClass = "from-teal-50 to-green-50"; }
-      else if (t.includes("location") || t.includes("benefit")) { icon = "📍"; colorClass = "from-pink-500 to-rose-600"; bgClass = "from-pink-50 to-rose-50"; }
-      else if (t.includes("action") || t.includes("plan")) { icon = "✓"; colorClass = "from-green-600 to-emerald-700"; bgClass = "from-green-100 to-emerald-100"; }
-      else if (t.includes("summary")) { icon = "⭐"; colorClass = "from-yellow-600 to-amber-700"; bgClass = "from-yellow-100 to-amber-100"; }
-      return { title: titleLine, content, icon, colorClass, bgClass };
-    });
+
+    // Section icon/color map keyed on heading keywords
+    const getSectionStyle = (title) => {
+      const t = title.toLowerCase();
+      if (t.includes("snapshot") || t.includes("health"))
+        return { icon: "📊", colorClass: "from-blue-500 to-cyan-600",     bgClass: "from-blue-50 to-cyan-50" };
+      if (t.includes("strength"))
+        return { icon: "💪", colorClass: "from-green-500 to-emerald-600", bgClass: "from-green-50 to-emerald-50" };
+      if (t.includes("risk") || t.includes("critical"))
+        return { icon: "⚠️", colorClass: "from-red-500 to-pink-600",      bgClass: "from-red-50 to-pink-50" };
+      if (t.includes("action") || t.includes("plan") || t.includes("30-day"))
+        return { icon: "🗓️", colorClass: "from-purple-500 to-indigo-600", bgClass: "from-purple-50 to-indigo-50" };
+      if (t.includes("savings") || t.includes("investment") || t.includes("target"))
+        return { icon: "📈", colorClass: "from-teal-500 to-green-600",    bgClass: "from-teal-50 to-green-50" };
+      if (t.includes("recommendation"))
+        return { icon: "✅", colorClass: "from-green-600 to-emerald-700", bgClass: "from-green-100 to-emerald-100" };
+      if (t.includes("government") || t.includes("scheme") || t.includes("tax"))
+        return { icon: "🏛️", colorClass: "from-amber-500 to-yellow-600",  bgClass: "from-amber-50 to-yellow-50" };
+      if (t.includes("insight") || t.includes("final") || t.includes("summary"))
+        return { icon: "⭐", colorClass: "from-yellow-500 to-orange-600", bgClass: "from-yellow-50 to-orange-50" };
+      if (t.includes("budget"))
+        return { icon: "💰", colorClass: "from-yellow-500 to-orange-600", bgClass: "from-yellow-50 to-orange-50" };
+      if (t.includes("debt") || t.includes("emi"))
+        return { icon: "🔗", colorClass: "from-rose-500 to-red-600",      bgClass: "from-rose-50 to-red-50" };
+      return   { icon: "📋", colorClass: "from-gray-500 to-slate-600",    bgClass: "from-gray-50 to-slate-50" };
+    };
+
+    // Split on markdown ## headings — each heading starts a new section card
+    const rawSections = text.split(/\n(?=##\s)/);
+
+    const sections = rawSections
+      .map(block => block.trim())
+      .filter(Boolean)
+      .map(block => {
+        const lines = block.split("\n");
+        // Strip leading ## / # and ** from the title line
+        const rawTitle = lines[0].replace(/^#{1,6}\s*/, "").replace(/\*\*/g, "").trim();
+        const rawContent = lines.slice(1).join("\n").trim();
+
+        // Clean content: remove bold markers, backticks, horizontal rules
+        const content = rawContent
+          .replace(/\*\*/g, "")
+          .replace(/\*/g, "")
+          .replace(/`/g, "")
+          .replace(/^---+$/gm, "")
+          .trim();
+
+        if (!rawTitle && !content) return null;
+
+        return { title: rawTitle, content, ...getSectionStyle(rawTitle) };
+      })
+      .filter(Boolean);
+
+    // If no ## headings found (plain text), fall back to treating the whole text as one section
+    if (sections.length === 0) {
+      const cleaned = text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "").trim();
+      return [{ title: "Financial Roadmap", content: cleaned, icon: "📋", colorClass: "from-green-500 to-emerald-600", bgClass: "from-green-50 to-emerald-50" }];
+    }
+
+    return sections;
   };
 
   const parseContentWithBullets = (content) => {
     if (!content) return null;
-    const cleanContent = content
-      .replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "")
-      .replace(/#{1,6}\s/g, "").replace(/^[-_]{3,}$/gm, "");
-    const parts = cleanContent.split("\n\n").filter(p => p.trim());
+
+    const parts = content.split("\n\n").filter(p => p.trim());
+
     return parts.map((part, idx) => {
-      if (part.toLowerCase().includes("quick action")) {
-        const actionText = part.replace(/quick action:?/i, "").replace(/\[|\]/g, "").trim();
+      const lines = part.split("\n").filter(l => l.trim());
+      if (!lines.length) return null;
+
+      // Sub-heading: line that was bold (e.g. "Week 1 — Foundation:")
+      const isSubHeading = lines.length === 1 && lines[0].match(/^(Week \d|Phase \d|\*\*)/i);
+      if (isSubHeading) {
         return (
-          <div key={idx} className="mt-4 p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-l-4 border-green-500">
-            <p className="text-sm font-semibold text-green-800 mb-1">⚡ Quick Action</p>
-            <p className="text-sm text-gray-800">{actionText}</p>
-          </div>
+          <p key={idx} className="font-semibold text-gray-800 mt-4 mb-1 text-base">
+            {lines[0].replace(/\*\*/g, "")}
+          </p>
         );
       }
-      const lines = part.split("\n").filter(l => l.trim());
-      const isBulletList = lines.some(l => l.trim().match(/^[•\-*]/));
-      if (isBulletList) {
+
+      // Detect if any line is a bullet (-, •, *) or numbered (1. 2.)
+      const isBullet   = lines.some(l => l.trim().match(/^[-•*]\s/));
+      const isNumbered = lines.some(l => l.trim().match(/^\d+\.\s/));
+
+      if (isBullet || isNumbered) {
         return (
-          <ul key={idx} className="space-y-2 mb-4">
+          <ul key={idx} className="space-y-2 mb-3">
             {lines.map((line, i) => {
-              const text = line.replace(/^[•\-*]\s*/, "").replace(/[\[\]]/g, "").trim();
+              // Strip bullet/number prefix
+              const text = line
+                .replace(/^[-•*]\s*/, "")
+                .replace(/^\d+\.\s*/, "")
+                .replace(/\*\*/g, "")
+                .replace(/[\[\]]/g, "")
+                .trim();
               if (!text) return null;
+
+              // Check if line has a bold label prefix like "Label: rest"
+              const colonIdx = text.indexOf(":");
+              const hasLabel = colonIdx > 0 && colonIdx < 40 && !text.startsWith("http");
+              const label   = hasLabel ? text.slice(0, colonIdx + 1) : null;
+              const rest    = hasLabel ? text.slice(colonIdx + 1).trim() : text;
+
               return (
                 <li key={i} className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1 flex-shrink-0">✓</span>
-                  <span className="text-gray-700 leading-relaxed">{text}</span>
+                  <span className="text-green-500 mt-1 flex-shrink-0 text-sm">✓</span>
+                  <span className="text-gray-700 leading-relaxed text-sm">
+                    {label && <span className="font-semibold text-gray-800">{label} </span>}
+                    {rest}
+                  </span>
                 </li>
               );
             })}
           </ul>
         );
       }
-      return <p key={idx} className="text-gray-700 leading-relaxed mb-3">{part.replace(/[\[\]]/g, "")}</p>;
+
+      // Plain paragraph
+      return (
+        <p key={idx} className="text-gray-700 leading-relaxed mb-3 text-sm">
+          {part.replace(/\*\*/g, "").replace(/[\[\]]/g, "")}
+        </p>
+      );
     });
   };
 
@@ -580,7 +632,7 @@ export default function FinancialAdvisorChatbotUi() {
               <div>
                 <Label required>Goal Type</Label>
                 <SelectInput name="goalType" value={formData.goalType} onChange={handleChange}
-                  options={GOAL_TYPE_OPTIONS} placeholder="Select goal"
+                  options={GOAL_TYPE_OPTIONS} placeholder="Select your primary goal"
                   error={visibleError("goalType")} />
               </div>
               <div>
@@ -591,32 +643,27 @@ export default function FinancialAdvisorChatbotUi() {
               </div>
               <div>
                 <Label required>Target Amount (₹)</Label>
-                <TextInput name="targetAmount" type="number" placeholder="e.g. 1000000" min="0"
+                <TextInput name="targetAmount" type="number" placeholder="e.g. 500000" min="0"
                   value={formData.targetAmount} onChange={handleChange}
                   error={visibleError("targetAmount")} />
               </div>
-              <div>
-                <Label required>Business / Occupation Type</Label>
-                <div>
-                  <input list="business-types" name="business_type" placeholder="Select or type"
-                    value={formData.business_type} onChange={handleChange} autoComplete="off"
-                    className={`p-2.5 border rounded-lg w-full text-sm focus:ring-2 focus:ring-green-500 transition ${
-                      visibleError("business_type") ? "border-red-400 bg-red-50" : "border-gray-300"
-                    }`} />
-                  <datalist id="business-types">
-                    {businessTypes.map((t, i) => <option key={i} value={t} />)}
-                  </datalist>
-                  <FieldError msg={visibleError("business_type")} />
-                </div>
-              </div>
               <div className="sm:col-span-2">
-                <Label required>Describe Your Financial Goal</Label>
-                <textarea name="financial_goal" placeholder="e.g. I want to save ₹10 lakh for my child's education in 5 years"
-                  value={formData.financial_goal} onChange={handleChange} rows={3}
-                  className={`p-2.5 border rounded-lg w-full text-sm focus:ring-2 focus:ring-green-500 transition resize-none ${
-                    visibleError("financial_goal") ? "border-red-400 bg-red-50" : "border-gray-300"
-                  }`} />
-                <FieldError msg={visibleError("financial_goal")} />
+                <Label>Describe Your Goal <span className="text-gray-400 font-normal">(optional)</span></Label>
+                <textarea
+                  name="financialGoalDescription"
+                  placeholder={
+                    formData.goalType
+                      ? `e.g. I want to achieve ${formData.goalType} within ${formData.goalDuration || "my target duration"}...`
+                      : "e.g. I want to save ₹5 lakh for my child's education in 3 years"
+                  }
+                  value={formData.financialGoalDescription}
+                  onChange={handleChange}
+                  rows={3}
+                  className="p-2.5 border border-gray-300 rounded-lg w-full text-sm focus:ring-2 focus:ring-green-500 transition resize-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  If left blank, we'll auto-generate a goal description from your selections above.
+                </p>
               </div>
             </SectionCard>
 
@@ -777,10 +824,7 @@ export default function FinancialAdvisorChatbotUi() {
                             {section.icon}
                           </div>
                           <div className="flex-1">
-                            <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r ${section.colorClass} text-white shadow mb-1`}>
-                              Step {index + 1}
-                            </span>
-                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800">{section.title}</h3>
+                            <h3 className="text-xl md:text-2xl font-bold text-gray-800">{section.title}</h3>
                           </div>
                         </div>
                       </div>

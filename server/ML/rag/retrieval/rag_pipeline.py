@@ -430,7 +430,7 @@ class RAGPipeline:
             print(f"[TRACEBACK] {traceback.format_exc()}")
             return False
 
-    def retrieve_knowledge(self, queries: List[str], k: int = 5) -> Tuple[List[Dict], Dict]:
+    def retrieve_knowledge(self, queries: List[str], k: int = 8) -> Tuple[List[Dict], Dict]:
         """
         Retrieve relevant knowledge chunks with optimization.
 
@@ -502,7 +502,7 @@ class RAGPipeline:
                     
                     optimized_chunks, opt_stats = RetrievalOptimizer.optimize_retrieval(
                         all_chunks,
-                        max_chunks=5
+                        max_chunks=12
                     )
                     
                     print(f"[OPTIMIZATION] Results:")
@@ -945,7 +945,7 @@ Based on your {risk_level} risk tolerance:
             print(f"Searching FAISS index with {len(queries)} queries...")
             print("Retrieving top-3 chunks per query...")
 
-            chunks, retrieval_stats = self.retrieve_knowledge(queries)
+            chunks, retrieval_stats = self.retrieve_knowledge(queries, k=8)
 
             print(f"[OK] FAISS search completed:")
             print(f"  - Total chunks retrieved: {retrieval_stats.get('chunks_retrieved', 0)}")

@@ -201,8 +201,8 @@ class DocumentRetriever:
             # Encode query
             query_embedding = self.encode_query(query)
 
-            # Search FAISS index
-            distances, indices = self.index.search(query_embedding, k * 2)  # Get more to filter
+            # Search FAISS index — fetch k*3 candidates to have enough after filtering
+            distances, indices = self.index.search(query_embedding, k * 3)  # Get more to filter
 
             # Process results
             results = []
