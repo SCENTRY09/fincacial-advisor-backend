@@ -54,7 +54,7 @@ const budgetRoutes = require('./routes/budget');
 const app = express();
 const http = require('http').createServer(app);
 const { Server } = require('socket.io');
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000;
 
 // Allow both local and production frontend URLs
 const allowedOrigins = [

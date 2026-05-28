@@ -17,7 +17,8 @@ function callRAGPipeline(userProfile) {
     console.log("\n[RAG PIPELINE] Starting RAG pipeline subprocess...");
     
     // Path to the RAG pipeline subprocess wrapper
-    const ragSubprocessPath = path.join(__dirname, '../../ML/rag/retrieval/rag_subprocess.py');
+    // ML folder is now inside server/ so path is relative to server/
+    const ragSubprocessPath = path.join(__dirname, '../ML/rag/retrieval/rag_subprocess.py');
     
     // Spawn Python process — pass current environment so GEMINI_API_KEY is inherited
     const python = spawn('python', [ragSubprocessPath], { env: process.env });

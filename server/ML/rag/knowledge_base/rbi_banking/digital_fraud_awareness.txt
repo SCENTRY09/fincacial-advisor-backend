@@ -1,0 +1,81 @@
+TITLE: Digital Fraud Awareness and Prevention
+
+CATEGORY: RBI/Banking
+
+SUMMARY: Digital fraud includes phishing, malware, and identity theft. Awareness and precautions protect against financial losses and data theft.
+
+KEY POINTS:
+- Phishing: Fake emails/SMS
+- Malware: Harmful software
+- Identity theft: Personal data misuse
+- Card cloning: Unauthorized card use
+- Account takeover: Unauthorized access
+- Ransomware: Data encryption attacks
+
+FRAUD TYPES:
+- Email phishing: Fake bank emails
+- SMS phishing: Fraudulent messages
+- Call fraud: Impersonation calls
+- Website fraud: Fake banking sites
+- App fraud: Malicious apps
+- Social engineering: Manipulation
+
+BEST SUITED FOR:
+- Online banking users
+- Mobile banking users
+- E-commerce shoppers
+- Credit card users
+- Anyone using digital services
+- All internet users
+
+RISK LEVEL: Moderate
+
+IMPORTANT GUIDELINES:
+- Verify sender identity
+- Don't click suspicious links
+- Use official apps only
+- Keep software updated
+- Use antivirus software
+- Enable security features
+
+COMMON MISTAKES:
+- Clicking phishing links
+- Sharing personal information
+- Using weak passwords
+- Banking on public WiFi
+- Ignoring security warnings
+- Downloading suspicious files
+
+SOURCE TYPE: RBI Guidelines
+
+PHISHING INDICATORS:
+- Urgent action required
+- Verify account information
+- Confirm password
+- Update payment details
+- Suspicious sender address
+- Poor grammar/spelling
+
+PROTECTION MEASURES:
+- Use strong passwords
+- Enable two-factor authentication
+- Keep software updated
+- Use antivirus software
+- Verify URLs carefully
+- Monitor accounts regularly
+
+FRAUD DETECTION:
+- Unexpected transactions
+- Account access from new location
+- Password change notification
+- New device login
+- Unusual activity
+- Missing statements
+
+RESPONSE STEPS:
+1. Stop using account
+2. Contact bank immediately
+3. Change passwords
+4. File police complaint
+5. Monitor credit report
+6. Document everything

@@ -1,0 +1,85 @@
+TITLE: Old vs New Tax Regime Comparison
+
+CATEGORY: Tax
+
+SUMMARY: India offers two tax regimes with different rates and deductions. Choosing the right regime can save significant taxes based on income and investment patterns.
+
+KEY POINTS:
+- Old regime: Deductions available, higher rates
+- New regime: No deductions, lower rates
+- Choice available annually
+- Default: New regime from FY 2023-24
+- Can switch between regimes
+- Different tax brackets
+
+OLD TAX REGIME:
+- Deductions under 80C, 80D, 80E, etc.
+- Standard deduction: Rs. 50,000
+- Home loan interest: Rs. 2,00,000
+- Medical insurance: Rs. 25,000-75,000
+- Higher tax rates: 5-30%
+- Suitable for high deductions
+
+NEW TAX REGIME:
+- No deductions available
+- No standard deduction
+- No home loan interest deduction
+- No medical insurance deduction
+- Lower tax rates: 5-30%
+- Suitable for low deductions
+
+TAX BRACKETS (OLD REGIME):
+- Up to Rs. 2,50,000: Nil
+- Rs. 2,50,001-5,00,000: 5%
+- Rs. 5,00,001-10,00,000: 20%
+- Above Rs. 10,00,000: 30%
+
+TAX BRACKETS (NEW REGIME):
+- Up to Rs. 3,00,000: Nil
+- Rs. 3,00,001-6,00,000: 5%
+- Rs. 6,00,001-9,00,000: 10%
+- Rs. 9,00,001-12,00,000: 15%
+- Rs. 12,00,001-15,00,000: 20%
+- Above Rs. 15,00,000: 30%
+
+BEST SUITED FOR:
+Old regime: High deductions, home loan, insurance
+New regime: Low deductions, simple income
+Salaried employees: Compare both
+Business owners: Usually old regime
+
+RISK LEVEL: Low
+
+IMPORTANT GUIDELINES:
+- Calculate tax under both regimes
+- Choose regime with lower tax
+- Decision made while filing ITR
+- Can change regime annually
+- Maintain deduction proofs
+- Plan investments accordingly
+
+COMMON MISTAKES:
+- Not comparing both regimes
+- Assuming new regime always better
+- Not maintaining deduction proofs
+- Forgetting to claim deductions
+- Not reviewing annually
+- Missing investment deadlines
+
+SOURCE TYPE: Tax Rules
+
+COMPARISON EXAMPLE:
+Income: Rs. 10,00,000
+Old regime deductions: Rs. 2,00,000 (80C + 80D)
+Old regime tax: Rs. 1,50,000
+New regime tax: Rs. 1,75,000
+Old regime saves: Rs. 25,000
+
+DECISION FRAMEWORK:
+If deductions > Rs. 2,50,000: Choose old regime
+If deductions < Rs. 2,50,000: Compare both
+If no deductions: Choose new regime
+Review annually as situation changes
+
+PLANNING STRATEGY:
+Maximize deductions in old regime. Invest in 80C, 80D, 80E options. Compare tax liability annually. Switch regime if beneficial.

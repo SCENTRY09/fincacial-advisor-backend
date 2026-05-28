@@ -1,0 +1,62 @@
+TITLE: EMI Management and Planning
+
+CATEGORY: Debt Management
+
+SUMMARY: EMI (Equated Monthly Installment) should not exceed 40-50% of monthly income. Proper planning ensures financial stability while managing loan obligations.
+
+KEY POINTS:
+- EMI formula: [P × R × (1+R)^N] / [(1+R)^N - 1]
+- Safe limit: 40-50% of monthly income
+- Includes all loan EMIs combined
+- Fixed or floating interest rates
+- Prepayment reduces total interest
+- Affects credit score if missed
+
+EMI COMPONENTS:
+- Principal portion (increases over time)
+- Interest portion (decreases over time)
+- Processing fees
+- Insurance charges
+- GST on charges
+
+LOAN TYPES:
+- Home loans: 15-20 years, 6.5-8.5% interest
+- Auto loans: 3-7 years, 7-12% interest
+- Personal loans: 1-5 years, 10-18% interest
+- Education loans: 5-15 years, 4-8% interest
+
+BEST SUITED FOR:
+- Salaried employees
+- Self-employed professionals
+- Business owners
+- Long-term goal planners
+- Disciplined borrowers
+
+RISK LEVEL: Moderate
+
+IMPORTANT GUIDELINES:
+- Calculate EMI before taking loan
+- Ensure EMI fits comfortably in budget
+- Maintain emergency fund while paying EMI
+- Avoid multiple loans simultaneously
+- Review loan terms before signing
+- Consider prepayment options
+
+COMMON MISTAKES:
+- Taking loan without EMI calculation
+- Ignoring processing fees
+- Not comparing interest rates
+- Taking multiple loans together
+- Missing EMI payments
+- Not maintaining emergency fund
+
+SOURCE TYPE: RBI Guidelines
+
+EMI IMPACT ANALYSIS:
+EMI < 30% of income: Excellent financial health
+EMI 30-40% of income: Good financial health
+EMI 40-50% of income: Acceptable but needs monitoring
+EMI > 50% of income: High financial risk
+
+PREPAYMENT BENEFIT:
+Prepaying reduces total interest significantly. Rs. 20,00,000 home loan at 7% for 20 years: prepaying Rs. 50,000 annually saves Rs. 5,00,000+ interest.

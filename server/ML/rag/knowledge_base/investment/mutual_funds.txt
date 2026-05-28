@@ -1,0 +1,53 @@
+TITLE: Mutual Funds Overview
+
+CATEGORY: Investment
+
+SUMMARY: Mutual funds pool money from investors to purchase diversified portfolios managed by professionals. They offer accessibility, diversification, and professional management for various investment goals.
+
+KEY POINTS:
+- Professional fund manager handles investments
+- Diversified portfolio reduces risk
+- Low minimum investment (Rs. 500+)
+- Daily liquidity through NAV-based pricing
+- Regulated by SEBI
+- Transparent fee structure
+
+FUND TYPES:
+- Equity funds: Higher risk, growth-focused
+- Debt funds: Lower risk, income-focused
+- Balanced funds: Mixed stocks and bonds
+- Liquid funds: Very low risk, quick access
+
+BEST SUITED FOR:
+- Retail investors
+- First-time investors
+- Busy professionals
+- Long-term wealth builders
+- Risk-averse investors
+
+RISK LEVEL: Low to High (varies by fund type)
+
+IMPORTANT GUIDELINES:
+- Check fund manager's track record
+- Compare expense ratios
+- Understand fund objective before investing
+- Invest for minimum 3-5 years
+- Avoid frequent buying/selling
+- Monitor performance quarterly
+
+COMMON MISTAKES:
+- Chasing past performance
+- Ignoring expense ratios
+- Panic selling during downturns
+- Not diversifying across fund types
+- Investing without clear goal
+- Frequent fund switching
+
+SOURCE TYPE: SEBI Guidelines
+
+EXPENSE RATIO IMPACT:
+Lower expense ratio means more returns reach investors. Compare similar funds and choose lower cost options. Even 0.5% difference compounds significantly over 20 years.
+
+NAV CALCULATION:
+NAV = (Total Assets - Total Liabilities) / Number of Units
+NAV determines investment amount and redemption value.
