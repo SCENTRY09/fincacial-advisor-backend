@@ -1,16 +1,9 @@
-# Core ML — compatible with Python 3.11
 numpy==1.26.4
 scikit-learn==1.4.2
 joblib==1.4.2
 pandas==2.2.2
-
-# RAG / Embeddings
-sentence-transformers==3.0.1
-faiss-cpu==1.8.0
-
-# Gemini AI
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0.post1
 google-generativeai==0.8.3
-
-# Utilities
 python-dotenv==1.0.1
 requests==2.32.3

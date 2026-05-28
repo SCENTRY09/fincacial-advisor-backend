@@ -6,6 +6,9 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
+  "config": {
+    "puppeteer_skip_download": "true"
+  },
   "author": "",
   "license": "ISC",
   "keywords": [],

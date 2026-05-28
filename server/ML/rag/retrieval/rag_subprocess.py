@@ -129,12 +129,8 @@ def main():
             })
             sys.exit(1)
 
-        # Get Gemini API key from environment
-        gemini_api_key = os.environ.get('GEMINI_API_KEY')
-        logger.info(f"GEMINI_API_KEY present: {bool(gemini_api_key)}")
-
-        # Run the full RAG pipeline
-        result = pipeline.process(profile, gemini_api_key=gemini_api_key)
+        # Run the full RAG pipeline — Gemini key is hardcoded inside rag_pipeline.py
+        result = pipeline.process(profile)
 
         # Build output
         if result.get('success'):

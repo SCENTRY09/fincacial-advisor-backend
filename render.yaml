@@ -1,9 +1,4 @@
 services:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Node.js Backend + Python RAG Pipeline (combined on one instance)
-  # rootDir: server/
-  # Python subprocess (rag_subprocess.py) runs inside this same service
-  # ─────────────────────────────────────────────────────────────────────────────
   - type: web
     name: financial-advisor-backend
     env: node
@@ -11,12 +6,9 @@ services:
     region: oregon
     rootDir: server
 
-    buildCommand: >-
-      npm install &&
-      pip3.11 install --upgrade pip &&
-      pip3.11 install -r requirements.txt
+    buildCommand: "npm install --ignore-scripts && python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt"
 
-    startCommand: node index.js
+    startCommand: "node index.js"
 
     healthCheckPath: /ping
     autoDeploy: true
@@ -28,6 +20,10 @@ services:
         value: 10000
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true"
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "true"
       - key: MONGO_URL
         sync: false
       - key: JWT_SECRET

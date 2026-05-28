@@ -39,6 +39,10 @@ try:
     
     from ML.rag.retrieval.retriever import DocumentRetriever
     import google.generativeai as genai
+
+    # ── Hardcode Gemini API key directly — no env var needed ──
+    GEMINI_API_KEY = "AIzaSyC-0dpr78lRN65-82mfvgrBdHiVen33iyo"
+    genai.configure(api_key=GEMINI_API_KEY)
 except ImportError as e:
     print(f"Warning: Some packages not installed: {e}")
 
@@ -364,18 +368,11 @@ class RetrievalQueryBuilder:
 class RAGPipeline:
     """Main RAG pipeline orchestrator."""
 
-    def __init__(self, gemini_api_key: Optional[str] = None):
-        """
-        Initialize RAG pipeline.
-
-        Args:
-            gemini_api_key: Google Gemini API key
-        """
+    def __init__(self):
+        """Initialize RAG pipeline."""
         self.retriever = None
         self.ml_predictor = MLModelPredictor()
-        self.gemini_api_key = gemini_api_key
         self.retrieval_stats = {}
-
         logger.info("RAGPipeline initialized")
 
     def initialize(self) -> bool:
@@ -413,12 +410,7 @@ class RAGPipeline:
                 logger.warning("ML models not available, continuing without predictions")
                 print("[WARN] ML models not available, continuing without predictions")
 
-            # Initialize Gemini if API key provided
-            if self.gemini_api_key:
-                logger.info("Initializing Gemini API...")
-                print("[INIT] Initializing Gemini API...")
-                genai.configure(api_key=self.gemini_api_key)
-
+            # Gemini is configured at module load time — no action needed here
             logger.info("RAG pipeline initialized successfully")
             print("[INIT] RAG pipeline initialized successfully")
             return True
@@ -653,11 +645,6 @@ class RAGPipeline:
             Generated roadmap
         """
         try:
-            if not self.gemini_api_key:
-                logger.warning("Gemini API key not configured, using template response")
-                print("[WARN] Gemini API key not configured")
-                return self._generate_template_roadmap(profile, predictions)
-
             logger.info("Generating roadmap with Gemini...")
             print("Calling Gemini API with production-grade prompt...")
 
@@ -780,17 +767,38 @@ STRICT RULES:
             if context and "RETRIEVED" not in final_prompt.upper():
                 print("\n[WARNING] Retrieved knowledge NOT injected into prompt!")
             
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(final_prompt)
-            roadmap = response.text
+            model = genai.GenerativeModel('gemini-1.5-flash')
+
+            # Configure generation
+            generation_config = genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+            )
+
+            # Retry up to 2 times on rate-limit errors
+            roadmap = None
+            for attempt in range(3):
+                try:
+                    print(f"[OK] Sending prompt to Gemini (attempt {attempt+1}, {len(final_prompt):,} chars)...")
+                    response = model.generate_content(
+                        final_prompt,
+                        generation_config=generation_config
+                    )
+                    roadmap = response.text
+                    break
+                except Exception as api_err:
+                    print(f"[WARN] Gemini attempt {attempt+1} failed: {type(api_err).__name__}: {api_err}")
+                    if attempt < 2:
+                        import time as _time
+                        _time.sleep(5)   # wait 5s before retry
+                    else:
+                        raise
 
             print(f"[OK] Gemini API response received: {len(roadmap):,} characters")
             
             # RESPONSE VALIDATION
             if not roadmap or len(roadmap.strip()) < 100:
-                print("\n[WARNING] Generated advice too short!")
-                print(f"[WARNING] Advice length: {len(roadmap.strip())} characters")
-                print("[FALLBACK] Using template response")
+                print(f"\n[WARNING] Generated advice too short ({len(roadmap.strip())} chars) — using template")
                 return self._generate_template_roadmap(profile, predictions)
             
             logger.info("Roadmap generated successfully")
@@ -798,6 +806,9 @@ STRICT RULES:
 
         except Exception as e:
             logger.error(f"Error generating roadmap: {e}")
+            print(f"[ERROR] Gemini API failed: {type(e).__name__}: {e}")
+            import traceback
+            print(f"[TRACEBACK] {traceback.format_exc()}")
             print(f"[WARN] Gemini API error: {e}")
             print("Falling back to template response...")
             return self._generate_template_roadmap(profile, predictions)
@@ -854,13 +865,12 @@ Based on your {risk_level} risk tolerance:
 """
         return roadmap
 
-    def process(self, profile: Dict, gemini_api_key: Optional[str] = None) -> Dict:
+    def process(self, profile: Dict) -> Dict:
         """
         Process user profile through complete RAG + ML pipeline.
 
         Args:
             profile: User financial profile
-            gemini_api_key: Optional Gemini API key
 
         Returns:
             Complete analysis and roadmap
@@ -879,10 +889,6 @@ Based on your {risk_level} risk tolerance:
             print(f"Risk Tolerance: {profile.get('riskTolerance', 'N/A')}")
             print(f"Investment Experience: {profile.get('investmentExperience', 'N/A')}")
             logger.info("Step 1: User profile received")
-
-            # Update API key if provided
-            if gemini_api_key:
-                self.gemini_api_key = gemini_api_key
 
             # ========== STEP 2: ML MODELS RUNNING ==========
             print("\n" + "=" * 80)
@@ -1015,15 +1021,10 @@ Based on your {risk_level} risk tolerance:
 
             # ========== STEP 8: GEMINI API CALL ==========
             print("\n" + "=" * 80)
-            print("STEP 8: CALLING GEMINI/OPENAI API")
+            print("STEP 8: CALLING GEMINI API")
             print("=" * 80)
-
-            if self.gemini_api_key:
-                print("[OK] Gemini API key configured")
-                logger.info("Calling Gemini API with RAG context")
-            else:
-                print("[WARN] Gemini API key not configured — using template fallback")
-                logger.warning("Gemini API key not configured, using template")
+            print("[OK] Gemini API key hardcoded — calling now...")
+            logger.info("Calling Gemini API with RAG context")
 
             roadmap = self.generate_roadmap(profile, predictions, context, retrieval_stats.get('sources', []))
 
