@@ -38,11 +38,12 @@ const upload = multer({
     }
 });
 
-// Get all transactions
+// Get all transactions for the logged-in user
 exports.getTransactions = async (req, res) => {
     try {
-        const transactions = await Transaction.find().sort({ date: -1 });
-        console.log(`Fetched ${transactions.length} transactions`);
+        const userId = req.user._id;
+        const transactions = await Transaction.find({ userId }).sort({ date: -1 });
+        console.log(`Fetched ${transactions.length} transactions for user ${userId}`);
         res.json(transactions);
     } catch (err) {
         console.error('Error fetching transactions:', err.message);
@@ -54,12 +55,13 @@ exports.getTransactions = async (req, res) => {
     }
 };
 
-// Get filtered transactions
+// Get filtered transactions for the logged-in user
 exports.getFilteredTransactions = async (req, res) => {
     try {
+        const userId = req.user._id;
         const filters = req.body;
-        const transactions = await Transaction.getFilteredTransactions(filters);
-        console.log(`Fetched ${transactions.length} filtered transactions`);
+        const transactions = await Transaction.getFilteredTransactions(filters, userId);
+        console.log(`Fetched ${transactions.length} filtered transactions for user ${userId}`);
         res.json(transactions);
     } catch (err) {
         console.error('Error fetching filtered transactions:', err.message);
@@ -118,6 +120,7 @@ exports.addTransaction = async (req, res) => {
         }
 
         const transaction = new Transaction({ 
+            userId: req.user._id,
             type,
             text: text.trim(), 
             amount: parsedAmount,
@@ -194,6 +197,7 @@ exports.addTransactionFromReceipt = async (req, res) => {
 
         // Create new transaction from receipt
         const transaction = new Transaction({ 
+            userId: req.user._id,
             type,
             text: text.trim(), 
             amount: parsedAmount,
@@ -278,6 +282,7 @@ exports.addMultipleTransactionsFromReceipt = async (req, res) => {
                 
                 // Create transaction with enhanced fields
                 const transaction = new Transaction({ 
+                    userId: req.user._id,
                     type: transactionData.type,
                     text: transactionData.text.trim(), 
                     amount: parsedAmount,
@@ -719,7 +724,7 @@ function getRandomPaymentMethod() {
     return methods[Math.floor(Math.random() * methods.length)];
 }
 
-// Update a transaction
+// Update a transaction — scoped to the logged-in user
 exports.updateTransaction = async (req, res) => {
     try {
         const { id } = req.params;
@@ -729,8 +734,9 @@ exports.updateTransaction = async (req, res) => {
         const parsedAmount = Number(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ message: 'Amount must be positive' });
 
-        const updated = await Transaction.findByIdAndUpdate(
-            id,
+        // Filter by both _id and userId to prevent cross-user updates
+        const updated = await Transaction.findOneAndUpdate(
+            { _id: id, userId: req.user._id },
             { type, amount: parsedAmount, date: date ? new Date(date) : undefined, category, notes, text: text?.trim(), isRecurring, recurringFrequency, updatedAt: Date.now() },
             { new: true, runValidators: true }
         );
@@ -755,7 +761,8 @@ exports.deleteTransaction = async (req, res) => {
             });
         }
         
-        const transaction = await Transaction.findByIdAndDelete(id);
+        // Filter by both _id and userId to prevent cross-user deletes
+        const transaction = await Transaction.findOneAndDelete({ _id: id, userId: req.user._id });
         
         if (!transaction) {
             return res.status(404).json({ 
@@ -780,10 +787,10 @@ exports.deleteTransaction = async (req, res) => {
     }
 };
 
-// Get transaction statistics
+// Get transaction statistics for the logged-in user
 exports.getTransactionStats = async (req, res) => {
     try {
-        const stats = await Transaction.getSummary();
+        const stats = await Transaction.getSummary(req.user._id);
         res.json(stats);
     } catch (err) {
         console.error('Error getting stats:', err.message);

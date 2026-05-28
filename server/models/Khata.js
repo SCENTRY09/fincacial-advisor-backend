@@ -9,6 +9,13 @@ const KhataEntrySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const KhataSchema = new mongoose.Schema({
+    // User relationship — each party ledger belongs to exactly one user
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, 'User ID is required'],
+        index: true
+    },
     name: { type: String, required: true, trim: true },
     phone: { type: String, trim: true },
     entries: [KhataEntrySchema]

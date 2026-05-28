@@ -4,6 +4,7 @@ RAG Pipeline Subprocess Wrapper
 
 This script is called by Node.js as a subprocess.
 It reads user profile from stdin and outputs JSON to stdout.
+ALL debug/log output goes to stderr — stdout is reserved for the single JSON line.
 
 Usage:
     python rag_subprocess.py < user_profile.json
@@ -22,40 +23,39 @@ from io import StringIO
 warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# Suppress all print statements from imported modules
-class SuppressPrints:
-    def write(self, x):
-        pass
-    def flush(self):
-        pass
+# ─────────────────────────────────────────────────────────────────────────────
+# CRITICAL: Redirect ALL stdout prints to stderr BEFORE importing anything.
+# This ensures only the final json.dumps() line reaches Node.js on stdout.
+# ─────────────────────────────────────────────────────────────────────────────
+_real_stdout = sys.stdout
+sys.stdout = sys.stderr   # all print() calls now go to stderr
 
 # Add project root to path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Configure logging to suppress everything
+# Configure logging → stderr only
 logging.basicConfig(
-    level=logging.CRITICAL,  # Only show critical errors
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     stream=sys.stderr
 )
 logger = logging.getLogger(__name__)
 
-# Suppress logging from all modules
-logging.getLogger('sentence_transformers').setLevel(logging.CRITICAL)
-logging.getLogger('sklearn').setLevel(logging.CRITICAL)
-logging.getLogger('faiss').setLevel(logging.CRITICAL)
-logging.getLogger('google').setLevel(logging.CRITICAL)
-
-# Suppress print output from RAG pipeline
-_original_stdout = sys.stdout
+# Suppress noisy third-party loggers
+logging.getLogger('sentence_transformers').setLevel(logging.WARNING)
+logging.getLogger('sklearn').setLevel(logging.WARNING)
+logging.getLogger('faiss').setLevel(logging.WARNING)
+logging.getLogger('google').setLevel(logging.WARNING)
+logging.getLogger('huggingface_hub').setLevel(logging.WARNING)
 
 try:
     from ML.rag.retrieval.rag_pipeline import RAGPipeline
 except ImportError as e:
-    sys.stdout = _original_stdout
-    output = {
+    # Restore stdout to emit the error JSON
+    sys.stdout = _real_stdout
+    error_output = {
         'success': False,
         'error': f'Failed to import RAGPipeline: {str(e)}',
         'roadmap': '',
@@ -64,19 +64,28 @@ except ImportError as e:
         'retrievalStats': {},
         'financialAnalysis': {}
     }
-    print(json.dumps(output))
+    print(json.dumps(error_output))
     sys.exit(1)
+
+
+def emit_json(data: dict):
+    """Write JSON exclusively to the real stdout so Node.js can parse it."""
+    sys.stdout = _real_stdout
+    # Use ensure_ascii=True so all non-ASCII chars are escaped — safe on any platform
+    sys.stdout.buffer.write((json.dumps(data, ensure_ascii=True) + '\n').encode('utf-8'))
+    sys.stdout.buffer.flush()
+    sys.stdout = sys.stderr  # restore redirect
 
 
 def main():
     """Main entry point for subprocess."""
     try:
-        # Read user profile from stdin
+        # Read user profile from stdin (stdin is unaffected by the stdout redirect)
         input_data = sys.stdin.read()
-        
+
         if not input_data.strip():
             logger.error("No input data received")
-            output = {
+            emit_json({
                 'success': False,
                 'error': 'No input data received',
                 'roadmap': '',
@@ -84,15 +93,14 @@ def main():
                 'retrievedSources': [],
                 'retrievalStats': {},
                 'financialAnalysis': {}
-            }
-            print(json.dumps(output))
+            })
             sys.exit(1)
-        
+
         try:
             profile = json.loads(input_data)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON: {e}")
-            output = {
+            emit_json({
                 'success': False,
                 'error': f'Invalid JSON: {str(e)}',
                 'roadmap': '',
@@ -100,16 +108,15 @@ def main():
                 'retrievedSources': [],
                 'retrievalStats': {},
                 'financialAnalysis': {}
-            }
-            print(json.dumps(output))
+            })
             sys.exit(1)
-        
+
         # Initialize and run RAG pipeline
         pipeline = RAGPipeline()
-        
+
         if not pipeline.initialize():
             logger.error("Failed to initialize pipeline")
-            output = {
+            emit_json({
                 'success': False,
                 'error': 'Failed to initialize RAG pipeline',
                 'roadmap': '',
@@ -117,17 +124,17 @@ def main():
                 'retrievedSources': [],
                 'retrievalStats': {},
                 'financialAnalysis': {}
-            }
-            print(json.dumps(output))
+            })
             sys.exit(1)
-        
+
         # Get Gemini API key from environment
         gemini_api_key = os.environ.get('GEMINI_API_KEY')
-        
-        # Process through RAG pipeline (allow debug output for troubleshooting)
+        logger.info(f"GEMINI_API_KEY present: {bool(gemini_api_key)}")
+
+        # Run the full RAG pipeline
         result = pipeline.process(profile, gemini_api_key=gemini_api_key)
-        
-        # Ensure result has all required fields
+
+        # Build output
         if result.get('success'):
             output = {
                 'success': True,
@@ -149,13 +156,12 @@ def main():
                 'retrievalStats': {},
                 'financialAnalysis': {}
             }
-        
-        # Output JSON to stdout (Node.js will parse this)
-        print(json.dumps(output))
-        
+
+        emit_json(output)
+
     except Exception as e:
         logger.error(f"Fatal error in subprocess: {e}", exc_info=True)
-        output = {
+        emit_json({
             'success': False,
             'error': str(e),
             'roadmap': '',
@@ -163,8 +169,7 @@ def main():
             'retrievedSources': [],
             'retrievalStats': {},
             'financialAnalysis': {}
-        }
-        print(json.dumps(output))
+        })
         sys.exit(1)
 
 

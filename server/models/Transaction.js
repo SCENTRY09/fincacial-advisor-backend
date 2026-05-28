@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const TransactionSchema = new mongoose.Schema({
+    // User relationship — isolates each transaction to its owner
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, 'User ID is required'],
+        index: true
+    },
     type: { 
         type: String, 
         enum: ['income', 'expense'], 
@@ -111,12 +118,12 @@ TransactionSchema.virtual('typeDisplay').get(function() {
     return this.type === 'income' ? 'Income' : 'Expense';
 });
 
-// Index for better query performance
-TransactionSchema.index({ createdAt: -1 });
-TransactionSchema.index({ date: -1 });
-TransactionSchema.index({ type: 1 });
-TransactionSchema.index({ category: 1 });
-TransactionSchema.index({ amount: 1 });
+// Compound indexes — userId first so all queries scope to the user before filtering
+TransactionSchema.index({ userId: 1, createdAt: -1 });
+TransactionSchema.index({ userId: 1, date: -1 });
+TransactionSchema.index({ userId: 1, type: 1 });
+TransactionSchema.index({ userId: 1, category: 1 });
+TransactionSchema.index({ userId: 1, amount: 1 });
 
 // Pre-save middleware to update the updatedAt field
 TransactionSchema.pre('save', function(next) {
@@ -124,16 +131,17 @@ TransactionSchema.pre('save', function(next) {
     next();
 });
 
-// Static method to get summary
-TransactionSchema.statics.getSummary = async function() {
-    const transactions = await this.find();
+// Static method to get summary for a specific user
+TransactionSchema.statics.getSummary = async function(userId) {
+    const query = userId ? { userId } : {};
+    const transactions = await this.find(query);
     
     const summary = {
         totalTransactions: transactions.length,
         totalIncome: 0,
         totalExpense: 0,
         balance: 0,
-        recentTransactions: await this.find().sort({ date: -1 }).limit(5),
+        recentTransactions: await this.find(query).sort({ date: -1 }).limit(5),
         categoryBreakdown: {},
         monthlyBreakdown: {},
         averageMonthlyExpense: 0,
@@ -189,51 +197,43 @@ TransactionSchema.statics.getSummary = async function() {
     // Calculate balance and monthly averages
     summary.balance = summary.totalIncome - summary.totalExpense;
     
-    // Calculate monthly averages
     const monthsWithData = Object.values(summary.monthlyBreakdown).filter(month => month.transactions > 0);
     if (monthsWithData.length > 0) {
         summary.averageMonthlyExpense = monthsWithData.reduce((sum, month) => sum + month.expense, 0) / monthsWithData.length;
         summary.averageMonthlyIncome = monthsWithData.reduce((sum, month) => sum + month.income, 0) / monthsWithData.length;
     }
     
-    // Calculate savings rate
     if (summary.totalIncome > 0) {
         summary.savingsRate = summary.balance / summary.totalIncome;
     }
     
-    // Calculate monthly balances
     Object.values(summary.monthlyBreakdown).forEach(month => {
         month.balance = month.income - month.expense;
     });
     
-    // Get top expense categories
     summary.topCategories = Object.entries(summary.categoryBreakdown)
-        .filter(([category, data]) => data.expense > 0)
+        .filter(([, data]) => data.expense > 0)
         .sort(([, a], [, b]) => b.expense - a.expense)
         .slice(0, 5)
         .map(([category, data]) => ({
             category,
             amount: data.expense,
-            percentage: (data.expense / summary.totalExpense) * 100
+            percentage: summary.totalExpense > 0 ? (data.expense / summary.totalExpense) * 100 : 0
         }));
     
-    // Calculate transaction trends
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthKey = lastMonth.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const currentMonthKey = currentMonth.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    const currentMonthKey = new Date(now.getFullYear(), now.getMonth(), 1)
+        .toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     
     if (summary.monthlyBreakdown[lastMonthKey] && summary.monthlyBreakdown[currentMonthKey]) {
         const lastMonthExpense = summary.monthlyBreakdown[lastMonthKey].expense;
         const currentMonthExpense = summary.monthlyBreakdown[currentMonthKey].expense;
-        
         if (lastMonthExpense > 0) {
             summary.transactionTrends.expenseChange = ((currentMonthExpense - lastMonthExpense) / lastMonthExpense) * 100;
         }
-        
         const lastMonthIncome = summary.monthlyBreakdown[lastMonthKey].income;
         const currentMonthIncome = summary.monthlyBreakdown[currentMonthKey].income;
-        
         if (lastMonthIncome > 0) {
             summary.transactionTrends.incomeChange = ((currentMonthIncome - lastMonthIncome) / lastMonthIncome) * 100;
         }
@@ -242,22 +242,19 @@ TransactionSchema.statics.getSummary = async function() {
     return summary;
 };
 
-// Static method to get transactions with filters
-TransactionSchema.statics.getFilteredTransactions = async function(filters) {
-    const query = {};
+// Static method to get filtered transactions for a specific user
+TransactionSchema.statics.getFilteredTransactions = async function(filters, userId) {
+    const query = userId ? { userId } : {};
     
     if (filters.type && filters.type !== 'All') {
         query.type = filters.type;
     }
-    
     if (filters.category && filters.category !== 'All') {
         query.category = filters.category;
     }
-    
     if (filters.source && filters.source !== 'All') {
         query.source = filters.source;
     }
-    
     if (filters.startDate && filters.endDate) {
         query.date = {
             $gte: new Date(filters.startDate),

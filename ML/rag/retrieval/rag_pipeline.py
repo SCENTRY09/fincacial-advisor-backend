@@ -659,63 +659,63 @@ class RAGPipeline:
             print("Calling Gemini API with production-grade prompt...")
 
             # ========== STEP 8: PRODUCTION-GRADE PROMPT ==========
-            try:
-                from ML.rag.retrieval.prompt_generator import PromptGenerator
-                
-                prompt = PromptGenerator.generate_financial_advice_prompt(
-                    profile=profile,
-                    predictions=predictions,
-                    context=context,
-                    retrieved_sources=retrieved_sources
-                )
-                
-                print(f"[OK] Production-grade prompt generated: {len(prompt):,} characters")
-                
-            except ImportError:
-                logger.warning("PromptGenerator not available, using basic prompt")
-                print("[WARN] Using basic prompt (PromptGenerator not available)")
-                
-                # Fallback: Basic prompt
-                prompt = f"""
-You are an expert financial advisor for Indian users. Based on the following financial profile and knowledge base, generate a comprehensive, personalized financial roadmap.
+            final_prompt = f"""You are a concise AI financial advisor for Indian users.
 
 {context}
 
-Generate a detailed financial roadmap with these sections:
+Generate a SHORT, structured "30-Day Financial Roadmap Summary" using ONLY these sections.
+Keep total response under 500 words. Use bullet points. Be specific with numbers. Use Rs for amounts.
 
-1. **Financial Health Snapshot** (2-3 sentences)
-2. **Immediate Actions (Next 30 Days)**
-3. **Budgeting Strategy**
-4. **Debt Management Plan**
-5. **Savings & Emergency Fund**
-6. **Investment Roadmap**
-7. **Government Schemes & Tax Benefits**
-8. **Risk Protection Plan**
-9. **6-Month Milestones**
-10. **Personalized Insights**
+---
 
-Use Indian Rupees (Rs) for all amounts. Be specific and actionable. Reference the knowledge base when providing advice.
+**Financial Snapshot**
+- Financial Score: {predictions.get('financial_score', 0):.0f}/100
+- Risk Level: {predictions.get('risk_level', 'N/A')}
+- Spending Behavior: {predictions.get('spending_behavior', 'N/A')}
+- Monthly Surplus: Rs {profile.get('monthlyIncome', 0) - profile.get('monthlyExpenses', 0):,.0f}
+
+**Key Strengths** (2-3 bullets)
+
+**Critical Risks** (2-3 bullets with warning emoji)
+
+**30-Day Action Plan**
+Week 1: [specific action with amount]
+Week 2: [specific action with amount]
+Week 3: [specific action with amount]
+Week 4: [specific action with amount]
+
+**Savings & Investment Targets**
+- Emergency Fund Target: Rs [amount]
+- Monthly Investment: Rs [amount]
+- Savings Rate Goal: [%]
+
+**Top 5 Recommendations** (numbered, one line each, specific to this user)
+
+**Final Insight** (2 sentences max, motivational)
+
+RULES:
+- Use the retrieved knowledge base to ground advice
+- Every number must be specific to this user's income/expenses
+- No generic advice — personalize everything
+- No long paragraphs
 """
-
-            print(f"Sending {len(prompt):,} character prompt to Gemini...")
             
             # PROMPT VALIDATION
             print("\n===== PROMPT DEBUG =====")
-            print(f"Final Prompt Length: {len(prompt):,} characters")
+            print(f"Final Prompt Length: {len(final_prompt):,} characters")
             print("\n===== PROMPT PREVIEW (first 500 chars) =====")
             try:
-                # Handle encoding issues with special characters (like Rupee symbol)
-                preview = prompt[:500].encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+                preview = final_prompt[:500].encode('utf-8', errors='replace').decode('utf-8', errors='replace')
                 print(preview)
             except Exception as e:
-                print(f"[Note: Preview contains special characters - {len(prompt[:500])} chars]")
+                print(f"[Note: Preview contains special characters - {len(final_prompt[:500])} chars]")
             
             # Check if retrieved knowledge is in prompt
-            if chunks and "RETRIEVED" not in prompt.upper():
+            if context and "RETRIEVED" not in final_prompt.upper():
                 print("\n[WARNING] Retrieved knowledge NOT injected into prompt!")
             
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(prompt)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(final_prompt)
             roadmap = response.text
 
             print(f"[OK] Gemini API response received: {len(roadmap):,} characters")
@@ -930,135 +930,36 @@ Based on your {risk_level} risk tolerance:
             print(f"  - Includes retrieved chunks: {'[OK]' if chunks else '[FAIL]'}")
             logger.info(f"Context built: {len(context)} characters")
 
-            # ========== STEP 7: FINAL GEMINI PROMPT ==========
+            # ========== STEP 7: PASS CONTEXT TO ROADMAP GENERATOR ==========
             print("\n" + "=" * 80)
-            print("STEP 7: FINAL PROMPT SENT TO GEMINI/OPENAI")
+            print("STEP 7: PASSING RAG CONTEXT TO GEMINI")
             print("=" * 80)
-            print("Building final prompt with RAG context...")
+            print(f"[OK] Context ready: {len(context):,} characters")
+            print(f"  - Contains user profile: [OK]")
+            print(f"  - Contains ML predictions: [OK]")
+            print(f"  - Contains retrieved chunks: {'[OK]' if chunks else '[WARN] No chunks'}")
 
-            # Build the final prompt
-            final_prompt = f"""
-You are an expert financial advisor for Indian users. Based on the following financial profile and knowledge base, generate a comprehensive, personalized financial roadmap.
-
-{context}
-
-Generate a detailed financial roadmap with these sections:
-
-1. **Financial Health Snapshot** (2-3 sentences)
-   - Current financial status assessment
-   - Key strengths and concerns
-
-2. **Immediate Actions (Next 30 Days)**
-   - 3-5 specific, actionable steps
-   - Priority order
-   - Expected impact
-
-3. **Budgeting Strategy**
-   - Recommended budget allocation
-   - Areas to optimize
-   - Savings targets
-
-4. **Debt Management Plan**
-   - Current debt analysis
-   - Repayment strategy
-   - Timeline
-
-5. **Savings & Emergency Fund**
-   - Target emergency fund amount
-   - Monthly savings target
-   - Timeline to achieve
-
-6. **Investment Roadmap**
-   - Recommended investment types
-   - Asset allocation
-   - Risk-appropriate options
-   - Expected returns
-
-7. **Government Schemes & Tax Benefits**
-   - Applicable schemes
-   - Tax-saving opportunities
-   - Implementation steps
-
-8. **Risk Protection Plan**
-   - Insurance recommendations
-   - Coverage amounts
-   - Priority order
-
-9. **6-Month Milestones**
-   - Specific, measurable goals
-   - Progress indicators
-   - Review checkpoints
-
-10. **Personalized Insights**
-    - Unique opportunities
-    - Potential challenges
-    - Success factors
-
-IMPORTANT RULES:
-- Use Indian Rupees (Rs ) for all amounts
-- Reference the knowledge base when providing advice
-- Use beginner-friendly language
-- Be specific and actionable
-- Consider the user's risk tolerance and experience level
-- Mention sources from the knowledge base when relevant
-- Provide realistic timelines
-- Focus on sustainable financial growth
-"""
-
-            print(f"[OK] Final prompt prepared:")
-            print(f"  - Prompt length: {len(final_prompt):,} characters")
-            print(f"  - Contains user profile: {'[OK]' if 'Monthly Income' in final_prompt else '[FAIL]'}")
-            print(f"  - Contains ML predictions: {'[OK]' if 'Financial Score' in final_prompt else '[FAIL]'}")
-            print(f"  - Contains retrieved knowledge: {'[OK]' if 'knowledge base' in final_prompt.lower() else '[FAIL]'}")
-
-            # Verify retrieved knowledge is in prompt
-            if chunks and any(chunk['text'][:50] in final_prompt for chunk in chunks[:3]):
-                print(f"  - Retrieved chunks injected: [OK] (VERIFIED)")
-                logger.info("Retrieved chunks successfully injected into prompt")
-            elif chunks:
-                print(f"  - Retrieved chunks injected: [OK] (via context)")
+            # Verify retrieved knowledge is in context
+            if chunks:
+                print(f"  - Retrieved chunks injected: [OK] ({len(chunks)} chunks via context)")
                 logger.info("Retrieved chunks included in context")
             else:
-                print(f"  - Retrieved chunks injected: [FAIL] (NO CHUNKS AVAILABLE)")
+                print(f"  - Retrieved chunks injected: [WARN] No chunks available")
                 logger.warning("No retrieved chunks available for injection")
-
-            print(f"\nFirst 500 characters of prompt:")
-            try:
-                # Handle Unicode characters (like Rupee symbol ₹) safely
-                preview = final_prompt[:500].encode('utf-8', errors='replace').decode('utf-8', errors='replace')
-                print(preview)
-            except Exception as e:
-                print(f"[Note: Preview contains special characters - {len(final_prompt[:500])} chars]")
 
             # ========== STEP 8: GEMINI API CALL ==========
             print("\n" + "=" * 80)
             print("STEP 8: CALLING GEMINI/OPENAI API")
             print("=" * 80)
 
-            # ========== STEP 8: GEMINI API CALL ==========
-            try:
-                print("\n" + "=" * 80)
-                print("STEP 8: CALLING GEMINI/OPENAI API")
-                print("=" * 80)
-            except:
-                pass  # Ignore print errors
-
             if self.gemini_api_key:
-                try:
-                    print("[OK] Gemini API key configured")
-                    print("Sending prompt to Gemini API...")
-                except:
-                    pass
+                print("[OK] Gemini API key configured")
                 logger.info("Calling Gemini API with RAG context")
             else:
-                try:
-                    print("[WARN] Gemini API key not configured")
-                    print("Using template fallback response")
-                except:
-                    pass
+                print("[WARN] Gemini API key not configured — using template fallback")
                 logger.warning("Gemini API key not configured, using template")
 
-            roadmap = self.generate_roadmap(profile, predictions, final_prompt, retrieval_stats.get('sources', []))
+            roadmap = self.generate_roadmap(profile, predictions, context, retrieval_stats.get('sources', []))
 
             # ========== STEP 9: FINAL RESPONSE ==========
             try:
@@ -1130,10 +1031,10 @@ IMPORTANT RULES:
                 else:
                     print(f"[OK] Context: {len(context)} characters")
 
-                # Check 3: Prompt contains retrieved chunks
-                if chunks and not any(chunk['text'][:30] in final_prompt for chunk in chunks[:3]):
-                    print("[WARN] WARNING: Retrieved chunks not in final prompt!")
-                    logger.warning("Validation failed: Chunks not in prompt")
+                # Check 3: Context contains retrieved chunks
+                if chunks and not any(chunk['text'][:30] in context for chunk in chunks[:3]):
+                    print("[WARN] WARNING: Retrieved chunks not in context!")
+                    logger.warning("Validation failed: Chunks not in context")
                     validation_passed = False
                 else:
                     print("[OK] Retrieved chunks injected into prompt")

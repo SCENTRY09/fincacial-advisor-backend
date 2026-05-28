@@ -4,6 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { handleUpload, handleExtract } = require('../controllers/ocrController');
+const { ensureAuthenticated, requireAuth } = require('../middlewares/AuthMiddleware');
+
+// All OCR routes require authentication
+router.use(ensureAuthenticated);
+router.use(requireAuth);
 
 const os = require('os');
 // Use OS temp dir for cross-platform compatibility
