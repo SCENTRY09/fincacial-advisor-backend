@@ -39,10 +39,6 @@ try:
     
     from ML.rag.retrieval.retriever import DocumentRetriever
     import google.generativeai as genai
-
-    # ── Hardcode Gemini API key directly — no env var needed ──
-    GEMINI_API_KEY = "AIzaSyC-0dpr78lRN65-82mfvgrBdHiVen33iyo"
-    genai.configure(api_key=GEMINI_API_KEY)
 except ImportError as e:
     print(f"Warning: Some packages not installed: {e}")
 
@@ -373,7 +369,21 @@ class RAGPipeline:
         self.retriever = None
         self.ml_predictor = MLModelPredictor()
         self.retrieval_stats = {}
+        self.gemini_api_key = None
         logger.info("RAGPipeline initialized")
+
+    def set_gemini_api_key(self, api_key: str):
+        """
+        Set the Gemini API key for this pipeline instance.
+        
+        Args:
+            api_key: The Gemini API key
+        """
+        if not api_key:
+            raise ValueError("API key cannot be empty")
+        self.gemini_api_key = api_key
+        genai.configure(api_key=api_key)
+        logger.info("Gemini API key configured")
 
     def initialize(self) -> bool:
         """

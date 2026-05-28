@@ -116,6 +116,37 @@ def main():
         # Initialize and run RAG pipeline
         pipeline = RAGPipeline()
 
+        # Set Gemini API key from environment variable (passed by Node.js)
+        gemini_api_key = os.environ.get('GEMINI_API_KEY')
+        if not gemini_api_key:
+            logger.error("GEMINI_API_KEY not found in environment variables")
+            emit_json({
+                'success': False,
+                'error': 'GEMINI_API_KEY not configured',
+                'roadmap': '',
+                'financial_advice': '',
+                'retrievedSources': [],
+                'retrievalStats': {},
+                'financialAnalysis': {}
+            })
+            sys.exit(1)
+
+        try:
+            pipeline.set_gemini_api_key(gemini_api_key)
+            logger.info("Gemini API key set successfully")
+        except Exception as e:
+            logger.error(f"Failed to set Gemini API key: {e}")
+            emit_json({
+                'success': False,
+                'error': f'Failed to configure API key: {str(e)}',
+                'roadmap': '',
+                'financial_advice': '',
+                'retrievedSources': [],
+                'retrievalStats': {},
+                'financialAnalysis': {}
+            })
+            sys.exit(1)
+
         if not pipeline.initialize():
             logger.error("Failed to initialize pipeline")
             emit_json({

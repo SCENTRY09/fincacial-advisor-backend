@@ -23,8 +23,14 @@ function callRAGPipeline(userProfile) {
     // Use 'python3' on Linux/Render, 'python' on Windows
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
 
-    // Spawn Python process — pass current environment so GEMINI_API_KEY is inherited
-    const python = spawn(pythonCmd, [ragSubprocessPath], { env: process.env });
+    // Create environment with GEMINI_API_KEY passed from Node.js
+    const env = {
+      ...process.env,
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY || ''
+    };
+
+    // Spawn Python process — pass environment with GEMINI_API_KEY
+    const python = spawn(pythonCmd, [ragSubprocessPath], { env });
     
     let output = '';
     let errorOutput = '';
