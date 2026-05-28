@@ -126,20 +126,20 @@ function countFilled(f) {
 
 // ─── Reusable field components ────────────────────────────────────────────────
 
-function FieldError({ msg }) {
+const FieldError = ({ msg }) => {
   if (!msg) return null;
   return <p className="text-red-500 text-xs mt-1">{msg}</p>;
-}
+};
 
-function Label({ children, required }) {
+const Label = ({ children, required }) => {
   return (
     <label className="block text-xs font-semibold text-gray-700 mb-1">
       {children}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
   );
-}
+};
 
-function TextInput({ name, placeholder, value, onChange, error, type = "text", min, step }) {
+const TextInput = ({ name, placeholder, value, onChange, error, type = "text", min, step }) => {
   return (
     <div>
       <input
@@ -157,9 +157,9 @@ function TextInput({ name, placeholder, value, onChange, error, type = "text", m
       <FieldError msg={error} />
     </div>
   );
-}
+};
 
-function SelectInput({ name, value, onChange, options, placeholder, error }) {
+const SelectInput = ({ name, value, onChange, options, placeholder, error }) => {
   return (
     <div>
       <select
@@ -178,9 +178,9 @@ function SelectInput({ name, value, onChange, options, placeholder, error }) {
       <FieldError msg={error} />
     </div>
   );
-}
+};
 
-function SectionCard({ title, icon, children }) {
+const SectionCard = ({ title, icon, children }) => {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
@@ -192,12 +192,12 @@ function SectionCard({ title, icon, children }) {
       </div>
     </div>
   );
-}
+};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function FinancialAdvisorChatbotUi() {
-  const { user, isAuthenticated } = useAuthState();
+  const { user, isAuthenticated, loading: authLoading } = useAuthState();
 
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [isEditingIncome, setIsEditingIncome] = useState(false);
@@ -209,6 +209,13 @@ export default function FinancialAdvisorChatbotUi() {
   const [progress, setProgress] = useState(0);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
+  // Update tempIncome when user changes
+  useEffect(() => {
+    if (user?.monthlyIncome) {
+      setTempIncome(user.monthlyIncome);
+    }
+  }, [user?.monthlyIncome]);
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -216,6 +223,12 @@ export default function FinancialAdvisorChatbotUi() {
     markAllTouched();
 
     if (!isFormValid()) return;
+    
+    // Verify user is authenticated and has required fields
+    if (!user || !user._id) {
+      alert('User not authenticated. Please log in again.');
+      return;
+    }
 
     setLoading(true);
     setAdvice(null);
@@ -225,11 +238,11 @@ export default function FinancialAdvisorChatbotUi() {
       // userId is NEVER sent from the frontend — the backend reads req.user._id.
       const requestData = {
         // ── From user profile (server-verified) ──
-        name: user.name || "",
-        age: user.age || "",
-        location: user.location || "",
-        preferred_language: user.language || "English",
-        family_size: user.familySize || "",
+        name: user?.name || "",
+        age: user?.age || "",
+        location: user?.location || "",
+        preferred_language: user?.language || "English",
+        family_size: user?.familySize || "",
 
         // ── Section 1: Personal ──
         occupation: formData.occupation,
@@ -239,7 +252,7 @@ export default function FinancialAdvisorChatbotUi() {
         state: formData.state,
 
         // ── Section 2: Income ──
-        monthly_income: tempIncome || user.monthlyIncome || "",
+        monthly_income: tempIncome || user?.monthlyIncome || "",
         monthlyIncome: Number(formData.monthlyIncome) || Number(tempIncome) || 0,
         additionalIncome: Number(formData.additionalIncome) || 0,
         monthlyExpenses: Number(formData.monthlyExpenses) || 0,
@@ -279,10 +292,52 @@ export default function FinancialAdvisorChatbotUi() {
       }
     } catch (error) {
       console.error("❌ Error fetching advice:", error);
-      alert(`Error: ${error.message}. Please try again.`);
+      
+      let errorMsg = 'Error generating advice. Please try again.';
+      if (error.response?.status === 401) {
+        errorMsg = 'Your session has expired. Please log in again.';
+      } else if (error.response?.status === 400) {
+        errorMsg = 'Invalid form data. Please check your inputs.';
+      } else if (error.response?.status === 500) {
+        errorMsg = 'Server error. Please try again later.';
+      }
+      
+      alert(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Form handlers ───────────────────────────────────────────────────────────
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    // Update progress
+    const filled = countFilled({ ...formData, [name]: value });
+    setProgress(Math.round((filled / TOTAL_FIELDS) * 100));
+    
+    // Validate on change
+    const newErrors = validateForm({ ...formData, [name]: value });
+    setErrors(newErrors);
+  };
+
+  const markAllTouched = () => {
+    const allKeys = Object.keys(INITIAL_FORM);
+    const touchedObj = {};
+    allKeys.forEach(key => { touchedObj[key] = true; });
+    setTouched(touchedObj);
+  };
+
+  const isFormValid = () => {
+    const errs = validateForm(formData);
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const visibleError = (fieldName) => {
+    return touched[fieldName] ? errors[fieldName] : null;
   };
 
   // ── Income inline edit ───────────────────────────────────────────────────────
@@ -424,6 +479,22 @@ export default function FinancialAdvisorChatbotUi() {
   };
 
   // ── Auth guard ───────────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex flex-col items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl border border-green-100 p-8 max-w-md mx-auto text-center">
+          <div className="flex justify-center mb-4">
+            <svg className="animate-spin h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-700">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex flex-col items-center justify-center">
