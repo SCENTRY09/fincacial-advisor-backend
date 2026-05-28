@@ -1,10 +1,10 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import AuthContext from '../Authorisation/AuthProvider';
 import { clearAuthData, getAuthData } from '../utils/authUtils';
 import { useAuthState } from '../hooks/useAuthState';
+import apiService, { BACKEND_URL } from '../services/apiService';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -83,8 +83,7 @@ const LoginPage = () => {
       // Set a flag to indicate we're in Google OAuth flow
       sessionStorage.setItem('fromGoogleOAuth', 'true');
       
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8080';
-      const googleLoginUrl = `${backendUrl}/api/auth/google`;
+      const googleLoginUrl = `${BACKEND_URL}/api/auth/google`;
       window.location.href = googleLoginUrl;
     } catch (error) {
       console.error('Error initiating Google login:', error);
@@ -147,11 +146,7 @@ const LoginPage = () => {
     try {
       setIsLoading(true);
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/api/auth/login`,
-        formData,
-        { withCredentials: true }
-      );
+      const response = await apiService.auth.login(formData);
 
       if (response.data.success) {
         // Show success toast

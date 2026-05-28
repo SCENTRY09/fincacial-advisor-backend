@@ -21,7 +21,7 @@ import {
 import { useAuthState, setAuthState } from '../hooks/useAuthState';
 import NavBar from '../components/NavBar';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import apiService from '../services/apiService';
 
 // Move ProfileField component outside to prevent recreation on every render
 const ProfileField = React.memo(({ icon: Icon, label, value, isEditing, field, type = "text", placeholder, min, max, formatDisplay, onInputChange }) => (
@@ -156,11 +156,7 @@ const Profile = () => {
         updateData.familySize = parseInt(editedUser.familySize);
       }
 
-      const response = await axios.put(
-        `${process.env.REACT_APP_BACKEND_URL}/api/auth/profile`,
-        updateData,
-        { withCredentials: true }
-      );
+      const response = await apiService.auth.updateProfile(updateData);
 
       if (response.data.success) {
         toast.dismiss(loadingToast);

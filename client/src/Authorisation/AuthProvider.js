@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { toast } from 'react-toastify';
 import { clearAuthData, setAuthData, getAuthData } from "../utils/authUtils";
 import { useAuthState, setAuthState, clearAuthState } from "../hooks/useAuthState";
+import apiService from "../services/apiService";
 
 const AuthContext = createContext();
 
@@ -81,9 +81,7 @@ export const AuthProvider = ({ children }) => {
         draggable: false,
       });
 
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/logout`, {}, {
-        withCredentials: true
-      });
+      await apiService.auth.logout();
 
       // Dismiss loading toast
       toast.dismiss(loadingToast);
@@ -133,12 +131,7 @@ export const AuthProvider = ({ children }) => {
   const verifyAuth = useCallback(async () => {
     try {
       console.log('🔍 Verifying authentication with server...');
-      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/auth/verify`, {
-        withCredentials: true,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const response = await apiService.auth.verify();
       
       if (response.data.success) {
         console.log('✅ Server verification successful');

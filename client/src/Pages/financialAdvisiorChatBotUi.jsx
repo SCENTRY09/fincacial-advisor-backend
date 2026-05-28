@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthState } from "../hooks/useAuthState";
+import apiService from "../services/apiService";
 import "../LandingPage/Hero/Hero.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -208,69 +209,6 @@ export default function FinancialAdvisorChatbotUi() {
   const [progress, setProgress] = useState(0);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const backend_url = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
-
-  // Sync income from user profile
-  useEffect(() => {
-    if (user?.monthlyIncome) setTempIncome(user.monthlyIncome);
-  }, [user?.monthlyIncome]);
-
-  // Keep legacy savings field in sync with new savings field
-  useEffect(() => {
-    if (formData.savings !== formData.existing_savings) {
-      setFormData(prev => ({ ...prev, existing_savings: prev.savings }));
-    }
-  }, [formData.savings]);
-
-  // Keep legacy risk field in sync
-  useEffect(() => {
-    if (formData.riskTolerance !== formData.risk_tolerance) {
-      setFormData(prev => ({ ...prev, risk_tolerance: prev.riskTolerance }));
-    }
-  }, [formData.riskTolerance]);
-
-  // Validate and update progress on every change
-  useEffect(() => {
-    const errs = validateForm(formData);
-    setErrors(errs);
-    setProgress(Math.round((countFilled(formData) / TOTAL_FIELDS) * 100));
-  }, [formData]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setTouched(prev => ({ ...prev, [name]: true }));
-
-    // Sanitise numeric fields — allow only digits and one decimal point
-    const numericFields = [
-      "monthlyIncome", "additionalIncome", "monthlyExpenses", "savings",
-      "existingInvestments", "loanAmount", "creditCardDebt", "monthlyEMI",
-      "targetAmount", "dependents", "existing_savings",
-    ];
-    if (numericFields.includes(name)) {
-      const clean = value.replace(/[^0-9.]/g, "");
-      const parts = clean.split(".");
-      if (parts.length > 2) return;
-      if (parts.length === 2 && parts[1].length > 2) return;
-      setFormData(prev => ({ ...prev, [name]: clean }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const isFormValid = () => {
-    if (!isAuthenticated || !user) return false;
-    return Object.keys(validateForm(formData)).length === 0;
-  };
-
-  // Show errors for all fields on submit attempt
-  const markAllTouched = () => {
-    const all = {};
-    Object.keys(INITIAL_FORM).forEach(k => { all[k] = true; });
-    setTouched(all);
-  };
-
-  const visibleError = (field) => (touched[field] || submitAttempted) ? errors[field] : undefined;
-
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -330,22 +268,17 @@ export default function FinancialAdvisorChatbotUi() {
         existing_savings: Number(formData.savings) || 0,
       };
 
-      const response = await fetch(`${backend_url}/api/financial-advice/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(requestData),
-      });
+      console.log('📤 Sending financial advice request with data:', requestData);
+      const response = await apiService.financialAdvice.generate(requestData);
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to fetch advice");
+      if (response.data) {
+        console.log('✅ Received financial advice response');
+        setAdvice(response.data.financial_advice || "No advice available.");
+      } else {
+        throw new Error("No data in response");
       }
-
-      const result = await response.json();
-      setAdvice(result.financial_advice || "No advice available.");
     } catch (error) {
-      console.error("Error fetching advice:", error);
+      console.error("❌ Error fetching advice:", error);
       alert(`Error: ${error.message}. Please try again.`);
     } finally {
       setLoading(false);

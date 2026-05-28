@@ -4,86 +4,76 @@ const User = require('../models/User');
 // Middleware to ensure user is authenticated
 const ensureAuthenticated = async (req, res, next) => {
   try {
+    console.log('🔍 [ensureAuthenticated] Checking authentication...');
+    console.log('🔍 [ensureAuthenticated] Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+    console.log('🔍 [ensureAuthenticated] Cookies:', req.cookies?.token ? 'Present' : 'Missing');
+    
     // Check for token in cookies first (primary method)
     let token = req.cookies?.token;
     
     // If no token in cookies, check Authorization header
     if (!token && req.headers.authorization) {
       const authHeader = req.headers.authorization;
+      console.log('🔍 [ensureAuthenticated] Authorization header value:', authHeader.substring(0, 20) + '...');
+      
       if (authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7);
-      } else {
-        // Handle case where frontend sends user ID instead of JWT
-        const userId = authHeader.replace('Bearer ', '');
-        if (userId && userId !== 'anonymous') {
-          // Find user by ID or email
-          const user = await User.findOne({
-            $or: [
-              { _id: userId },
-              { email: userId },
-              { id: userId }
-            ]
-          });
-          if (user) {
-            req.user = user;
-            return next();
-          }
-        }
+        console.log('✅ [ensureAuthenticated] Extracted Bearer token');
       }
     }
     
-    // If no token found, allow the request but set user as null
+    // If no token found, reject the request
     if (!token) {
+      console.log('❌ [ensureAuthenticated] No token found in cookies or Authorization header');
       req.user = null;
       return next();
     }
     
     try {
       // Verify JWT token
+      console.log('🔍 [ensureAuthenticated] Verifying JWT token...');
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('✅ [ensureAuthenticated] JWT verified, user ID:', decoded.sub);
       
       // Find user
       const user = await User.findById(decoded.sub);
       if (!user) {
+        console.log('❌ [ensureAuthenticated] User not found in database');
         req.user = null;
         return next();
       }
       
+      console.log('✅ [ensureAuthenticated] User found:', user.email);
       // Set user in request
       req.user = user;
       next();
     } catch (jwtError) {
-      console.log('JWT verification failed, trying alternative auth...');
-      // If JWT fails, try to find user by the token as user ID
-      const user = await User.findOne({
-        $or: [
-          { _id: token },
-          { email: token },
-          { id: token }
-        ]
-      });
-      
-      if (user) {
-        req.user = user;
-        next();
-      } else {
-        req.user = null;
-        next();
-      }
+      console.error('❌ [ensureAuthenticated] JWT verification failed:', jwtError.message);
+      req.user = null;
+      next();
     }
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    // Don't block the request, just set user as null
+    console.error('❌ [ensureAuthenticated] Middleware error:', error);
     req.user = null;
     next();
   }
 };
 
-// Middleware to require authentication
+// Middleware to require authentication - MUST be called after ensureAuthenticated
 const requireAuth = (req, res, next) => {
+  console.log('🔍 [requireAuth] Checking if user is authenticated...');
+  console.log('🔍 [requireAuth] req.user exists:', !!req.user);
+  
   if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
+    console.log('❌ [requireAuth] User not authenticated - returning 401');
+    return res.status(401).json({ 
+      success: false,
+      error: 'Authentication required',
+      message: 'Please log in to access this resource'
+    });
   }
+  
+  console.log('✅ [requireAuth] User authenticated:', req.user.email);
   next();
 };
 

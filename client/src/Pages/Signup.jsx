@@ -1,9 +1,9 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import AuthContext from '../Authorisation/AuthProvider';
 import { getAuthData } from '../utils/authUtils';
+import apiService from '../services/apiService';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -111,15 +111,11 @@ const Signup = () => {
     try {
       setIsLoading(true);
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/api/auth/register`,
-        {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
-        },
-        { withCredentials: true }
-      );
+      const response = await apiService.auth.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
 
       if (response.data.success) {
         // Show success toast
