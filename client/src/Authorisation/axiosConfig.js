@@ -15,6 +15,7 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔐 Adding Authorization header with Bearer token');
     }
     return config;
   },
@@ -29,11 +30,20 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Only clear auth on specific 401 errors from verify endpoint
+    // Don't clear on other 401 errors (they might be temporary)
     if (error.response?.status === 401) {
-      // Clear local storage and redirect to login
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const isVerifyEndpoint = error.config?.url?.includes('/api/auth/verify');
+      
+      if (isVerifyEndpoint) {
+        console.log('❌ Token verification failed - clearing auth');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        // Dispatch custom event to notify AuthProvider
+        window.dispatchEvent(new CustomEvent('authFailed'));
+      } else {
+        console.log('⚠️ 401 error on non-verify endpoint - not clearing auth');
+      }
     }
     return Promise.reject(error);
   }

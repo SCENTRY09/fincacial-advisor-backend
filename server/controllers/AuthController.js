@@ -183,26 +183,41 @@ exports.logout = (req, res) => {
 // Verify token
 exports.verifyToken = async (req, res) => {
   try {
-    const token = req.cookies?.token;
+    // Check for token in cookies first (primary method)
+    let token = req.cookies?.token;
     
-    if (!token) {
-      return res.status(401).json({ message: 'No token provided' });
+    // If no token in cookies, check Authorization header (Bearer token)
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
     }
     
+    if (!token) {
+      console.log('❌ No token provided in cookies or Authorization header');
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+    
+    console.log('🔍 Verifying token...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Token verified, user ID:', decoded.sub);
+    
     const user = await User.findById(decoded.sub);
     
     if (!user) {
-      return res.status(401).json({ message: 'Invalid token' });
+      console.log('❌ User not found for token');
+      return res.status(401).json({ success: false, message: 'Invalid token' });
     }
     
+    console.log('✅ User found:', user.email);
     res.json({
       success: true,
       user: user.toJSON()
     });
   } catch (error) {
-    console.error('Token verification error:', error);
-    res.status(401).json({ message: 'Invalid token' });
+    console.error('❌ Token verification error:', error.message);
+    res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
 

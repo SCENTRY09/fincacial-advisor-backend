@@ -134,7 +134,10 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('🔍 Verifying authentication with server...');
       const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/auth/verify`, {
-        withCredentials: true
+        withCredentials: true,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
       });
       
       if (response.data.success) {
@@ -154,12 +157,16 @@ export const AuthProvider = ({ children }) => {
         clearAuth();
       }
     } catch (error) {
-      console.error("Auth verification failed:", error);
-      // Always clear auth state on server errors to prevent stale data
-      console.log('❌ Server error during verification - clearing auth state');
-      clearAuth();
-    } finally {
-      setLoading(false);
+      console.error("Auth verification failed:", error.message);
+      // Only clear auth on 401 errors, not on network errors
+      if (error.response?.status === 401) {
+        console.log('❌ 401 Unauthorized - clearing auth state');
+        clearAuth();
+      } else {
+        console.log('⚠️ Network or server error - keeping auth state intact');
+        // Keep auth state intact on network errors
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -205,12 +212,19 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(e.detail.isAuthenticated);
     };
 
+    const handleAuthFailed = () => {
+      console.log('🔴 Auth failed event received - clearing auth state');
+      clearAuth();
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthStateChange);
+    window.addEventListener('authFailed', handleAuthFailed);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authStateChanged', handleAuthStateChange);
+      window.removeEventListener('authFailed', handleAuthFailed);
     };
   }, []);
 
