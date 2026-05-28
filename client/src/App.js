@@ -90,7 +90,7 @@ function App() {
         <Route path="/business-guide/:businessType" element={<ProtectedRoute><BusinessGuide /></ProtectedRoute>} />
         <Route path="/community" element={<ProtectedRoute><DiscussionForums /></ProtectedRoute>} />
 
-        <Route path="/chatbot" element={<Chatbot />} />        
+        <Route path="/chatbot" element={<ErrorBoundary><ProtectedRoute><Chatbot /></ProtectedRoute></ErrorBoundary>} />        
         <Route path="/dairy" element={<DairyForumPage />} />
         <Route path="/stories" element={<SuccessStories />} />
         

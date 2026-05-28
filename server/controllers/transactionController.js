@@ -481,11 +481,11 @@ exports.processReceiptWithGemini = async (req, res) => {
             });
         }
 
-        // Simulate processing time
+        // Simulate processing time with max timeout
         const processingTime = Math.min(fileSize / (1024 * 1024) * 1000, 3000); // Max 3 seconds
         await new Promise(resolve => setTimeout(resolve, processingTime));
 
-        // Use real Gemini API to extract transaction data
+        // Use real Gemini API to extract transaction data with timeout
         const geminiResponse = await extractTransactionDataWithGemini(receiptUrl, fileType);
         
         res.json({
@@ -565,8 +565,18 @@ const extractTransactionDataWithGemini = async (receiptUrl, fileType) => {
         Please return only the JSON response, no additional text.
         `;
 
-        // Call Gemini API
-        const response = await gemini(prompt);
+        // Call Gemini API with timeout protection
+        const gemini = require('../config/gemini');
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000)
+        );
+        
+        const responsePromise = (async () => {
+            const response = await gemini(prompt);
+            return response;
+        })();
+        
+        const response = await Promise.race([responsePromise, timeoutPromise]);
         
         // Parse the JSON response
         let parsedResponse;

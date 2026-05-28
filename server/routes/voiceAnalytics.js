@@ -199,99 +199,124 @@ router.get('/detailed', (req, res) => {
 
 // Performance metrics
 router.get('/performance', (req, res) => {
-  const performanceMetrics = {
-    responseTime: {
-      average: analyticsData.averageResponseTime,
-      p50: calculatePercentile(analyticsData.responseTimes, 50),
-      p95: calculatePercentile(analyticsData.responseTimes, 95),
-      p99: calculatePercentile(analyticsData.responseTimes, 99)
-    },
-    cache: {
-      hitRate: analyticsData.performance.cacheHits / (analyticsData.performance.cacheHits + analyticsData.performance.cacheMisses),
-      hits: analyticsData.performance.cacheHits,
-      misses: analyticsData.performance.cacheMisses
-    },
-    llm: {
-      calls: analyticsData.performance.llmCalls,
-      successRate: calculateLLMSuccessRate(),
-      averageTokens: calculateAverageTokens()
-    },
-    errors: {
-      total: analyticsData.errors.length,
-      byType: groupErrorsByType(),
-      recent: analyticsData.errors.slice(-10)
-    }
-  };
-  
-  res.json(performanceMetrics);
+  try {
+    const performanceMetrics = {
+      responseTime: {
+        average: analyticsData.averageResponseTime,
+        p50: calculatePercentile(analyticsData.responseTimes, 50),
+        p95: calculatePercentile(analyticsData.responseTimes, 95),
+        p99: calculatePercentile(analyticsData.responseTimes, 99)
+      },
+      cache: {
+        hitRate: analyticsData.performance.cacheHits / (analyticsData.performance.cacheHits + analyticsData.performance.cacheMisses),
+        hits: analyticsData.performance.cacheHits,
+        misses: analyticsData.performance.cacheMisses
+      },
+      llm: {
+        calls: analyticsData.performance.llmCalls,
+        successRate: calculateLLMSuccessRate(),
+        averageTokens: calculateAverageTokens()
+      },
+      errors: {
+        total: analyticsData.errors.length,
+        byType: groupErrorsByType(),
+        recent: analyticsData.errors.slice(-10)
+      }
+    };
+    
+    res.json(performanceMetrics);
+  } catch (err) {
+    console.error('Performance metrics error:', err);
+    res.status(500).json({ error: 'Failed to fetch performance metrics' });
+  }
 });
 
 // User analytics
 router.get('/users', (req, res) => {
-  const userAnalytics = {
-    totalUsers: Object.keys(analyticsData.userSessions).length,
-    activeUsers: calculateActiveUsers(),
-    userEngagement: calculateUserEngagement(),
-    topUsers: getTopUsers(),
-    userJourney: analyzeUserJourney()
-  };
-  
-  res.json(userAnalytics);
+  try {
+    const userAnalytics = {
+      totalUsers: Object.keys(analyticsData.userSessions).length,
+      activeUsers: calculateActiveUsers(),
+      userEngagement: calculateUserEngagement(),
+      topUsers: getTopUsers(),
+      userJourney: analyzeUserJourney()
+    };
+    
+    res.json(userAnalytics);
+  } catch (err) {
+    console.error('User analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch user analytics' });
+  }
 });
 
 // Real-time analytics
 router.get('/realtime', (req, res) => {
-  const now = new Date();
-  const lastMinute = new Date(now.getTime() - 60 * 1000);
-  const last5Minutes = new Date(now.getTime() - 5 * 60 * 1000);
-  
-  const realtimeData = {
-    currentMinute: {
-      commands: countCommandsInTimeRange(lastMinute, now),
-      errors: countErrorsInTimeRange(lastMinute, now),
-      activeUsers: countActiveUsersInTimeRange(lastMinute, now)
-    },
-    last5Minutes: {
-      commands: countCommandsInTimeRange(last5Minutes, now),
-      errors: countErrorsInTimeRange(last5Minutes, now),
-      activeUsers: countActiveUsersInTimeRange(last5Minutes, now)
-    },
-    currentHour: analyticsData.hourlyUsage[now.getHours()] || 0,
-    today: analyticsData.dailyUsage[now.toDateString()] || 0
-  };
-  
-  res.json(realtimeData);
+  try {
+    const now = new Date();
+    const lastMinute = new Date(now.getTime() - 60 * 1000);
+    const last5Minutes = new Date(now.getTime() - 5 * 60 * 1000);
+    
+    const realtimeData = {
+      currentMinute: {
+        commands: countCommandsInTimeRange(lastMinute, now),
+        errors: countErrorsInTimeRange(lastMinute, now),
+        activeUsers: countActiveUsersInTimeRange(lastMinute, now)
+      },
+      last5Minutes: {
+        commands: countCommandsInTimeRange(last5Minutes, now),
+        errors: countErrorsInTimeRange(last5Minutes, now),
+        activeUsers: countActiveUsersInTimeRange(last5Minutes, now)
+      },
+      currentHour: analyticsData.hourlyUsage[now.getHours()] || 0,
+      today: analyticsData.dailyUsage[now.toDateString()] || 0
+    };
+    
+    res.json(realtimeData);
+  } catch (err) {
+    console.error('Real-time analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch real-time analytics' });
+  }
 });
 
 // Export analytics data
 router.get('/export', (req, res) => {
-  const { format = 'json' } = req.query;
-  
-  if (format === 'csv') {
-    // Convert to CSV format
-    const csvData = convertToCSV(analyticsData);
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=voice-analytics.csv');
-    res.send(csvData);
-  } else {
-    res.json(analyticsData);
+  try {
+    const { format = 'json' } = req.query;
+    
+    if (format === 'csv') {
+      // Convert to CSV format
+      const csvData = convertToCSV(analyticsData);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=voice-analytics.csv');
+      res.send(csvData);
+    } else {
+      res.json(analyticsData);
+    }
+  } catch (err) {
+    console.error('Export analytics error:', err);
+    res.status(500).json({ error: 'Failed to export analytics' });
   }
 });
 
 // Reset analytics (admin only)
 router.post('/reset', (req, res) => {
-  // In production, add authentication here
-  Object.keys(analyticsData).forEach(key => {
-    if (Array.isArray(analyticsData[key])) {
-      analyticsData[key] = [];
-    } else if (typeof analyticsData[key] === 'object') {
-      analyticsData[key] = {};
-    } else {
-      analyticsData[key] = 0;
-    }
-  });
-  
-  res.json({ message: 'Analytics data reset successfully' });
+  try {
+    // In production, add authentication here
+    Object.keys(analyticsData).forEach(key => {
+      if (Array.isArray(analyticsData[key])) {
+        analyticsData[key] = [];
+      } else if (typeof analyticsData[key] === 'object') {
+        analyticsData[key] = {};
+      } else {
+        analyticsData[key] = 0;
+      }
+    });
+    
+    res.json({ message: 'Analytics data reset successfully' });
+  } catch (err) {
+    console.error('Reset analytics error:', err);
+    res.status(500).json({ error: 'Failed to reset analytics' });
+  }
 });
 
 // Helper functions

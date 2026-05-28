@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const passport = require('passport');
 const authController = require('../controllers/AuthController');
+const { ensureAuthenticated, requireAuth } = require('../middlewares/AuthMiddleware');
 
 // Google OAuth routes
 router.get('/google', 
@@ -17,9 +18,10 @@ router.post('/login', authController.login);
 
 router.post('/register', authController.register);
 
-// User management routes
+// User management routes - use ensureAuthenticated + requireAuth for consistency
 router.get('/user',
-  passport.authenticate('jwt', { session: false }),
+  ensureAuthenticated,
+  requireAuth,
   authController.getUser
 );
 
@@ -29,16 +31,11 @@ router.get('/verify',
   authController.verifyToken
 );
 
-// Profile update route
+// Profile update route - use ensureAuthenticated + requireAuth for consistency
 router.put('/profile',
-  passport.authenticate('jwt', { session: false }),
+  ensureAuthenticated,
+  requireAuth,
   authController.updateProfile
 );
-
-// Temporarily comment out error handling to see actual errors
-// router.use((error, req, res, next) => {
-//   console.error('❌ Auth route error:', error);
-//   res.status(500).json({ message: 'Internal server error' });
-// });
 
 module.exports = router;

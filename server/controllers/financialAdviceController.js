@@ -10,7 +10,7 @@ require("dotenv").config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: Call RAG Pipeline via Python subprocess
+// Helper: Call RAG Pipeline via Python subprocess with timeout protection
 // ─────────────────────────────────────────────────────────────────────────────
 function callRAGPipeline(userProfile) {
   return new Promise((resolve, reject) => {
@@ -34,6 +34,17 @@ function callRAGPipeline(userProfile) {
     
     let output = '';
     let errorOutput = '';
+    let processCompleted = false;
+    
+    // ✅ ADD TIMEOUT PROTECTION (30 seconds)
+    const timeoutId = setTimeout(() => {
+      if (!processCompleted) {
+        console.error("[RAG PIPELINE] ⏱️ TIMEOUT: Process exceeded 30 seconds, killing subprocess...");
+        processCompleted = true;
+        python.kill('SIGTERM');
+        reject(new Error('RAG pipeline timeout after 30 seconds'));
+      }
+    }, 30000);
     
     // Capture stdout (JSON output + warnings)
     python.stdout.on('data', (data) => {
@@ -50,6 +61,11 @@ function callRAGPipeline(userProfile) {
     
     // Handle process completion
     python.on('close', (code) => {
+      if (processCompleted) return; // Already handled by timeout
+      
+      processCompleted = true;
+      clearTimeout(timeoutId); // ✅ Clear timeout when process completes
+      
       console.log(`[RAG PIPELINE] Process exited with code ${code}`);
 
       if (code === 0) {
@@ -97,6 +113,11 @@ function callRAGPipeline(userProfile) {
     
     // Handle process errors
     python.on('error', (err) => {
+      if (processCompleted) return;
+      
+      processCompleted = true;
+      clearTimeout(timeoutId);
+      
       console.error("[RAG PIPELINE] Failed to start process:", err.message);
       reject(err);
     });
@@ -331,6 +352,13 @@ const generateFinancialAdvice = async (req, res) => {
       console.log("[STEP 4] Chunks retrieved:", ragResult.retrievalStats?.chunks_retrieved || 0);
     } catch (ragErr) {
       console.error("\n[STEP 4] RAG Pipeline failed:", ragErr.message);
+      
+      // Check if it's a quota error
+      if (ragErr.message && ragErr.message.includes('429')) {
+        console.error("[STEP 4] ⚠️ QUOTA EXCEEDED - Free tier limit reached");
+        throw new Error('Gemini API quota exceeded. Please enable billing or try again later.');
+      }
+      
       console.log("[STEP 4] Falling back to direct Gemini call...");
       
       // Fallback: Use direct Gemini if RAG fails
@@ -370,24 +398,45 @@ Provide a comprehensive financial roadmap with these sections:
 
 Write in simple, clear language with real numbers and calculations.`;
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent([fallbackPrompt]);
-      const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text;
+      try {
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        // Add timeout protection for fallback call
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Gemini API timeout after 30 seconds')), 30000)
+        );
+        
+        const result = await Promise.race([
+          model.generateContent([fallbackPrompt]),
+          timeoutPromise
+        ]);
+        
+        const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!responseText) {
-        throw new Error("Empty response from Gemini API");
-      }
-
-      ragResult = {
-        roadmap: responseText,
-        retrievedSources: [],
-        retrievalStats: { chunks_retrieved: 0, avg_relevance: 0 },
-        financialAnalysis: {
-          financialScore: scoreReport.financialScore,
-          riskLevel: risk_tolerance,
-          spendingBehavior: "Unknown"
+        if (!responseText) {
+          throw new Error("Empty response from Gemini API");
         }
-      };
+
+        ragResult = {
+          roadmap: responseText,
+          retrievedSources: [],
+          retrievalStats: { chunks_retrieved: 0, avg_relevance: 0 },
+          financialAnalysis: {
+            financialScore: scoreReport.financialScore,
+            riskLevel: risk_tolerance,
+            spendingBehavior: "Unknown"
+          }
+        };
+      } catch (fallbackErr) {
+        console.error("[STEP 4] Fallback Gemini call also failed:", fallbackErr.message);
+        
+        // Check if it's a quota error
+        if (fallbackErr.message && fallbackErr.message.includes('429')) {
+          throw new Error('Gemini API quota exceeded. Please enable billing or try again later.');
+        }
+        
+        throw fallbackErr;
+      }
     }
 
     // ── Persist advice record ────────────────────────────────────────────────
@@ -485,7 +534,16 @@ Current conversation context:`;
     const fullPrompt = `${conversationContext}\n\nUser: ${message}\n\nDhan Sarthi:`;
 
     console.log("Sending chat request to Gemini API for user:", req.user._id);
-    const result = await model.generateContent([fullPrompt]);
+    
+    // ✅ ADD TIMEOUT PROTECTION (30 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini API timeout after 30 seconds')), 30000)
+    );
+    
+    const result = await Promise.race([
+      model.generateContent([fullPrompt]),
+      timeoutPromise
+    ]);
 
     const responseText =
       result.response?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -501,7 +559,29 @@ Current conversation context:`;
     });
   } catch (error) {
     console.error("chatWithBot error:", error.message);
-    res.status(500).json({ error: error.message });
+    
+    // Handle quota error specifically
+    if (error.message && error.message.includes('429')) {
+      return res.status(429).json({ 
+        error: 'API quota exceeded',
+        message: 'Gemini API quota exceeded. Please enable billing or try again later.',
+        retryAfter: 'Please wait 24 hours or enable billing on your Google Cloud project.'
+      });
+    }
+    
+    // Handle timeout specifically
+    if (error.message.includes('timeout')) {
+      return res.status(504).json({ 
+        error: 'Gateway timeout',
+        message: 'The AI service took too long to respond. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

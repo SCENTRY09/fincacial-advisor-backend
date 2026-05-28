@@ -269,7 +269,15 @@ async function runOCR(filePath, mimetype) {
       for (const config of ocrConfigs) {
         try {
           console.log(`Trying ${config.name}...`);
-          const result = await Tesseract.recognize(filePath, 'eng', config.options);
+          
+          // Add timeout protection for Tesseract (120 seconds max)
+          const ocrTimeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`${config.name} timeout after 120 seconds`)), 120000)
+          );
+          
+          const ocrPromise = Tesseract.recognize(filePath, 'eng', config.options);
+          const result = await Promise.race([ocrPromise, ocrTimeoutPromise]);
+          
           extractedText = result.data.text;
           
           console.log(`${config.name} completed. Text length: ${extractedText.length}`);
@@ -423,7 +431,18 @@ const runFinancialExtraction = async (ocrText) => {
     `;
 
     console.log('Sending request to Gemini API...');
-    const response = await geminiClient(prompt);
+    
+    // Add timeout protection (60 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000)
+    );
+    
+    const responsePromise = (async () => {
+      const response = await geminiClient(prompt);
+      return response;
+    })();
+    
+    const response = await Promise.race([responsePromise, timeoutPromise]);
     
     console.log('Gemini response received, length:', response ? response.length : 0);
     

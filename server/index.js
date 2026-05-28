@@ -113,6 +113,53 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/khata-proofs", express.static(require('os').tmpdir() + '/khata-proofs'));
 
+// ✅ ADD REQUEST TIMEOUT MIDDLEWARE (60 seconds for most routes, 120 for heavy operations)
+app.use((req, res, next) => {
+  // Set timeout based on route
+  let timeout = 60000; // 60 seconds default
+  
+  if (req.path.includes('/financial-advice/generate') || 
+      req.path.includes('/ocr') ||
+      req.path.includes('/process-receipt')) {
+    timeout = 120000; // 120 seconds for heavy ML operations
+  }
+  
+  req.setTimeout(timeout, () => {
+    console.error(`⏱️ REQUEST TIMEOUT: ${req.method} ${req.path} exceeded ${timeout}ms`);
+    if (!res.headersSent) {
+      res.status(408).json({ 
+        error: 'Request timeout',
+        message: 'The request took too long to process. Please try again.',
+        timeout: timeout
+      });
+    }
+  });
+  
+  next();
+});
+
+// ✅ ADD RESPONSE TIMEOUT TRACKING
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // Track when response is sent
+  const originalSend = res.send;
+  res.send = function(data) {
+    const duration = Date.now() - startTime;
+    console.log(`✅ [${res.statusCode}] ${req.method} ${req.path} - ${duration}ms`);
+    return originalSend.call(this, data);
+  };
+  
+  const originalJson = res.json;
+  res.json = function(data) {
+    const duration = Date.now() - startTime;
+    console.log(`✅ [${res.statusCode}] ${req.method} ${req.path} - ${duration}ms`);
+    return originalJson.call(this, data);
+  };
+  
+  next();
+});
+
 // Passport middleware
 app.use(passport.initialize());
 
@@ -150,6 +197,45 @@ app.get("/", (req, res) => {
 
 app.get("/ping", (req, res) => {
   res.send("Hello Server");
+});
+
+// ✅ GLOBAL ERROR HANDLER - catches all unhandled errors
+app.use((err, req, res, next) => {
+  console.error('❌ [GLOBAL ERROR HANDLER]', {
+    message: err.message,
+    status: err.status || 500,
+    path: req.path,
+    method: req.method,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+
+  // Don't send response if headers already sent
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+
+  res.status(status).json({
+    error: 'Server error',
+    message: message,
+    status: status,
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
+// ✅ 404 HANDLER - for undefined routes
+app.use((req, res) => {
+  console.warn(`⚠️ 404 NOT FOUND: ${req.method} ${req.path}`);
+  res.status(404).json({
+    error: 'Not found',
+    message: `Route ${req.method} ${req.path} does not exist`,
+    status: 404,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // --- SOCKET.IO SETUP ---

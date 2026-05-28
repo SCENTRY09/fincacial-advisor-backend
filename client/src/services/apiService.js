@@ -10,28 +10,28 @@
 import axios from 'axios';
 
 // Get backend URL with priority:
-// 1. Runtime config (window.APP_CONFIG) - set in public/config.js
-// 2. Environment variable (REACT_APP_BACKEND_URL)
+// 1. Environment variable (REACT_APP_BACKEND_URL) - HIGHEST PRIORITY
+// 2. Runtime config (window.APP_CONFIG) - set in public/config.js
 // 3. localStorage (fallback)
 // 4. Deployed backend URL (final fallback - NOT localhost)
 
 let BACKEND_URL = null;
 
-// Check runtime config first (loaded from public/config.js)
-if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.BACKEND_URL) {
-  BACKEND_URL = window.APP_CONFIG.BACKEND_URL;
-  console.log('✅ Using runtime config BACKEND_URL:', BACKEND_URL);
+// Check environment variable FIRST (highest priority)
+if (process.env.REACT_APP_BACKEND_URL && process.env.REACT_APP_BACKEND_URL !== 'undefined') {
+  BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+  console.log('✅ Using environment variable REACT_APP_BACKEND_URL:', BACKEND_URL);
 }
 
-// Check environment variable
+// Check runtime config second
 if (!BACKEND_URL || BACKEND_URL === 'undefined') {
-  BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-  if (BACKEND_URL && BACKEND_URL !== 'undefined') {
-    console.log('✅ Using environment variable REACT_APP_BACKEND_URL:', BACKEND_URL);
+  if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.BACKEND_URL) {
+    BACKEND_URL = window.APP_CONFIG.BACKEND_URL;
+    console.log('✅ Using runtime config BACKEND_URL:', BACKEND_URL);
   }
 }
 
-// Check localStorage
+// Check localStorage third
 if (!BACKEND_URL || BACKEND_URL === 'undefined') {
   BACKEND_URL = localStorage.getItem('BACKEND_URL');
   if (BACKEND_URL && BACKEND_URL !== 'undefined') {
