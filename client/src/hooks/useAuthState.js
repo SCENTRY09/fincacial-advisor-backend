@@ -123,13 +123,19 @@ const initializeGlobalState = () => {
     try {
       const parsedUser = JSON.parse(user);
       if (parsedUser && parsedUser.name && parsedUser.email) {
-        // Don't automatically set as authenticated - require server validation
+        // Set as authenticated if we have valid stored data
+        globalAuthState = {
+          isAuthenticated: true,
+          user: parsedUser,
+          loading: true  // Still loading to verify with server
+        };
+        console.log('✅ Found stored auth data, loading: true for server verification');
+      } else {
         globalAuthState = {
           isAuthenticated: false,
           user: null,
-          loading: true
+          loading: false
         };
-        console.log('⚠️ Found stored auth data, but requiring server validation');
       }
     } catch (error) {
       console.error('Error parsing user data:', error);

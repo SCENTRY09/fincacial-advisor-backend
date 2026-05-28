@@ -171,15 +171,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // Always verify with server first, regardless of localStorage
+    // Only verify on initial mount, not on every render
     const authData = getAuthData();
     
     if (authData.isAuthenticated) {
-      // We have stored data, but still need to verify with server
+      // We have stored data, verify with server
       console.log('🔍 Found stored auth data, verifying with server...');
       verifyAuth();
     } else {
       // No stored data, ensure we're logged out
+      console.log('❌ No stored auth data found');
       setUser(null);
       setIsAuthenticated(false);
       setLoading(false);
@@ -190,7 +191,7 @@ export const AuthProvider = ({ children }) => {
         loading: false
       });
     }
-  }, [verifyAuth]);
+  }, []);
 
   // Add listeners for auth state changes
   useEffect(() => {

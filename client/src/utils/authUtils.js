@@ -1,6 +1,7 @@
 // Utility functions for authentication management
 
 export const clearAuthData = () => {
+  console.log('🗑️ Clearing auth data from localStorage');
   localStorage.removeItem("user");
   localStorage.removeItem("token");
   // Dispatch a custom event to notify components
@@ -10,6 +11,7 @@ export const clearAuthData = () => {
 };
 
 export const setAuthData = (user, token) => {
+  console.log('💾 Saving auth data to localStorage');
   localStorage.setItem("user", JSON.stringify(user));
   if (token) {
     localStorage.setItem("token", token);
@@ -29,23 +31,25 @@ export const getAuthData = () => {
       const parsedUser = JSON.parse(user);
       // Validate that user has required fields
       if (parsedUser && parsedUser.name && parsedUser.email) {
+        console.log('✅ Valid auth data found in localStorage');
         return {
           user: parsedUser,
           token,
           isAuthenticated: true
         };
       } else {
-        console.warn('Invalid user data in localStorage');
+        console.warn('⚠️ Invalid user data in localStorage - missing required fields');
         clearAuthData();
         return { user: null, token: null, isAuthenticated: false };
       }
     } catch (error) {
-      console.error('Error parsing user data:', error);
+      console.error('❌ Error parsing user data:', error);
       clearAuthData();
       return { user: null, token: null, isAuthenticated: false };
     }
   }
   
+  console.log('❌ No auth data found in localStorage');
   return { user: null, token: null, isAuthenticated: false };
 };
 
