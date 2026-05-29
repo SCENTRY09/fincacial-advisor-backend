@@ -90,7 +90,7 @@ async function processWithLLM(command, currentPage, websiteStructure, conversati
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const prompt = createEnhancedPrompt(command, currentPage, websiteStructure, conversationMode);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest-8b" });
       
       const result = await model.generateContent(prompt);
       const response = await result.response;

@@ -777,7 +777,7 @@ STRICT RULES:
             if context and "RETRIEVED" not in final_prompt.upper():
                 print("\n[WARNING] Retrieved knowledge NOT injected into prompt!")
             
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-flash-latest')
 
             # Configure generation
             generation_config = genai.types.GenerationConfig(
@@ -1033,7 +1033,7 @@ Based on your {risk_level} risk tolerance:
             print("\n" + "=" * 80)
             print("STEP 8: CALLING GEMINI API")
             print("=" * 80)
-            print("[OK] Gemini API key hardcoded — calling now...")
+            print("[OK] Gemini API key loaded from environment — calling now...")
             logger.info("Calling Gemini API with RAG context")
 
             roadmap = self.generate_roadmap(profile, predictions, context, retrieval_stats.get('sources', []))

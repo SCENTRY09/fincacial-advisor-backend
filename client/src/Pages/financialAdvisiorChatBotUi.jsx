@@ -206,6 +206,7 @@ export default function FinancialAdvisorChatbotUi() {
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState(null);
+  const [insights, setInsights] = useState(null);
   const [progress, setProgress] = useState(0);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -287,6 +288,7 @@ export default function FinancialAdvisorChatbotUi() {
       if (response.data) {
         console.log('✅ Received financial advice response');
         setAdvice(response.data.financial_advice || "No advice available.");
+        setInsights(response.data.insights || null);
       } else {
         throw new Error("No data in response");
       }
@@ -348,63 +350,58 @@ export default function FinancialAdvisorChatbotUi() {
     setIsEditingIncome(false);
   };
 
-  // ── Advice formatting (unchanged from original) ──────────────────────────────
+  // ── Advice formatting ────────────────────────────────────────────────────────
   const formatAdviceContent = (text) => {
     if (!text) return null;
 
-    // Section icon/color map keyed on heading keywords
     const getSectionStyle = (title) => {
       const t = title.toLowerCase();
-      if (t.includes("snapshot") || t.includes("health"))
+      if (t.includes("health") || t.includes("assessment") || t.includes("score"))
         return { icon: "📊", colorClass: "from-blue-500 to-cyan-600",     bgClass: "from-blue-50 to-cyan-50" };
-      if (t.includes("strength"))
-        return { icon: "💪", colorClass: "from-green-500 to-emerald-600", bgClass: "from-green-50 to-emerald-50" };
-      if (t.includes("risk") || t.includes("critical"))
-        return { icon: "⚠️", colorClass: "from-red-500 to-pink-600",      bgClass: "from-red-50 to-pink-50" };
-      if (t.includes("action") || t.includes("plan") || t.includes("30-day"))
-        return { icon: "🗓️", colorClass: "from-purple-500 to-indigo-600", bgClass: "from-purple-50 to-indigo-50" };
-      if (t.includes("savings") || t.includes("investment") || t.includes("target"))
-        return { icon: "📈", colorClass: "from-teal-500 to-green-600",    bgClass: "from-teal-50 to-green-50" };
-      if (t.includes("recommendation"))
-        return { icon: "✅", colorClass: "from-green-600 to-emerald-700", bgClass: "from-green-100 to-emerald-100" };
-      if (t.includes("government") || t.includes("scheme") || t.includes("tax"))
-        return { icon: "🏛️", colorClass: "from-amber-500 to-yellow-600",  bgClass: "from-amber-50 to-yellow-50" };
-      if (t.includes("insight") || t.includes("final") || t.includes("summary"))
-        return { icon: "⭐", colorClass: "from-yellow-500 to-orange-600", bgClass: "from-yellow-50 to-orange-50" };
-      if (t.includes("budget"))
-        return { icon: "💰", colorClass: "from-yellow-500 to-orange-600", bgClass: "from-yellow-50 to-orange-50" };
+      if (t.includes("cash flow") || t.includes("surplus"))
+        return { icon: "💵", colorClass: "from-green-500 to-emerald-600", bgClass: "from-green-50 to-emerald-50" };
+      if (t.includes("emergency"))
+        return { icon: "🛡️", colorClass: "from-orange-500 to-amber-600",  bgClass: "from-orange-50 to-amber-50" };
       if (t.includes("debt") || t.includes("emi"))
         return { icon: "🔗", colorClass: "from-rose-500 to-red-600",      bgClass: "from-rose-50 to-red-50" };
+      if (t.includes("goal") || t.includes("feasib"))
+        return { icon: "🎯", colorClass: "from-purple-500 to-indigo-600", bgClass: "from-purple-50 to-indigo-50" };
+      if (t.includes("budget"))
+        return { icon: "💰", colorClass: "from-yellow-500 to-orange-500", bgClass: "from-yellow-50 to-orange-50" };
+      if (t.includes("invest"))
+        return { icon: "📈", colorClass: "from-teal-500 to-green-600",    bgClass: "from-teal-50 to-green-50" };
+      if (t.includes("action") || t.includes("priority"))
+        return { icon: "⚡", colorClass: "from-indigo-500 to-purple-600", bgClass: "from-indigo-50 to-purple-50" };
+      if (t.includes("30-day") || t.includes("quick") || t.includes("win"))
+        return { icon: "🗓️", colorClass: "from-pink-500 to-rose-600",     bgClass: "from-pink-50 to-rose-50" };
+      if (t.includes("tax") || t.includes("scheme") || t.includes("government"))
+        return { icon: "🏛️", colorClass: "from-amber-500 to-yellow-600",  bgClass: "from-amber-50 to-yellow-50" };
+      if (t.includes("summary") || t.includes("final") || t.includes("insight"))
+        return { icon: "⭐", colorClass: "from-yellow-500 to-orange-600", bgClass: "from-yellow-50 to-orange-50" };
       return   { icon: "📋", colorClass: "from-gray-500 to-slate-600",    bgClass: "from-gray-50 to-slate-50" };
     };
 
-    // Split on markdown ## headings — each heading starts a new section card
-    const rawSections = text.split(/\n(?=##\s)/);
+    // Split on ## headings (also handle ### and # for robustness)
+    const rawSections = text.split(/\n(?=#{1,3}\s)/);
 
     const sections = rawSections
       .map(block => block.trim())
       .filter(Boolean)
       .map(block => {
         const lines = block.split("\n");
-        // Strip leading ## / # and ** from the title line
         const rawTitle = lines[0].replace(/^#{1,6}\s*/, "").replace(/\*\*/g, "").trim();
         const rawContent = lines.slice(1).join("\n").trim();
-
-        // Clean content: remove bold markers, backticks, horizontal rules
         const content = rawContent
-          .replace(/\*\*/g, "")
+          .replace(/\*\*([^*]+)\*\*/g, "§BOLD§$1§/BOLD§") // preserve bold as token
           .replace(/\*/g, "")
           .replace(/`/g, "")
           .replace(/^---+$/gm, "")
           .trim();
-
         if (!rawTitle && !content) return null;
-
         return { title: rawTitle, content, ...getSectionStyle(rawTitle) };
       })
       .filter(Boolean);
 
-    // If no ## headings found (plain text), fall back to treating the whole text as one section
     if (sections.length === 0) {
       const cleaned = text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/`/g, "").trim();
       return [{ title: "Financial Roadmap", content: cleaned, icon: "📋", colorClass: "from-green-500 to-emerald-600", bgClass: "from-green-50 to-emerald-50" }];
@@ -413,54 +410,70 @@ export default function FinancialAdvisorChatbotUi() {
     return sections;
   };
 
+  // Render bold tokens inside text
+  const renderInlineText = (text) => {
+    if (!text.includes("§BOLD§")) return text;
+    const parts = text.split(/(§BOLD§.*?§\/BOLD§)/g);
+    return parts.map((p, i) => {
+      if (p.startsWith("§BOLD§")) {
+        return <strong key={i} className="font-semibold text-gray-900">{p.replace(/§BOLD§|§\/BOLD§/g, "")}</strong>;
+      }
+      return p;
+    });
+  };
+
   const parseContentWithBullets = (content) => {
     if (!content) return null;
 
-    const parts = content.split("\n\n").filter(p => p.trim());
+    // Split into paragraphs/blocks
+    const blocks = content.split(/\n\n+/).filter(b => b.trim());
 
-    return parts.map((part, idx) => {
-      const lines = part.split("\n").filter(l => l.trim());
+    return blocks.map((block, idx) => {
+      const lines = block.split("\n").filter(l => l.trim());
       if (!lines.length) return null;
 
-      // Sub-heading: line that was bold (e.g. "Week 1 — Foundation:")
-      const isSubHeading = lines.length === 1 && lines[0].match(/^(Week \d|Phase \d|\*\*)/i);
-      if (isSubHeading) {
+      // Sub-heading: a line ending with ":" that is short and has no bullet prefix
+      const isSingleSubheading =
+        lines.length === 1 &&
+        (lines[0].match(/^(Week \d|Phase \d|Step \d|Day \d)/i) ||
+          (lines[0].endsWith(":") && lines[0].length < 60 && !lines[0].match(/^[-•*\d]/)));
+
+      if (isSingleSubheading) {
         return (
-          <p key={idx} className="font-semibold text-gray-800 mt-4 mb-1 text-base">
-            {lines[0].replace(/\*\*/g, "")}
+          <p key={idx} className="font-bold text-gray-800 mt-5 mb-2 text-sm uppercase tracking-wide border-b border-gray-200 pb-1">
+            {renderInlineText(lines[0].replace(/§BOLD§|§\/BOLD§/g, ""))}
           </p>
         );
       }
 
-      // Detect if any line is a bullet (-, •, *) or numbered (1. 2.)
-      const isBullet   = lines.some(l => l.trim().match(/^[-•*]\s/));
-      const isNumbered = lines.some(l => l.trim().match(/^\d+\.\s/));
+      // Bullet or numbered list
+      const isBullet   = lines.some(l => l.trim().match(/^[-•]\s/));
+      const isNumbered = lines.some(l => l.trim().match(/^\d+[.)]\s/));
 
       if (isBullet || isNumbered) {
         return (
-          <ul key={idx} className="space-y-2 mb-3">
+          <ul key={idx} className="space-y-2 mb-4">
             {lines.map((line, i) => {
-              // Strip bullet/number prefix
-              const text = line
-                .replace(/^[-•*]\s*/, "")
-                .replace(/^\d+\.\s*/, "")
-                .replace(/\*\*/g, "")
-                .replace(/[\[\]]/g, "")
+              const raw = line
+                .replace(/^[-•]\s*/, "")
+                .replace(/^\d+[.)]\s*/, "")
                 .trim();
-              if (!text) return null;
+              if (!raw) return null;
 
-              // Check if line has a bold label prefix like "Label: rest"
-              const colonIdx = text.indexOf(":");
-              const hasLabel = colonIdx > 0 && colonIdx < 40 && !text.startsWith("http");
-              const label   = hasLabel ? text.slice(0, colonIdx + 1) : null;
-              const rest    = hasLabel ? text.slice(colonIdx + 1).trim() : text;
+              // "Label: value" split
+              const colonIdx = raw.indexOf(":");
+              const hasLabel = colonIdx > 0 && colonIdx < 45 && !raw.startsWith("http");
+              const label = hasLabel ? raw.slice(0, colonIdx) : null;
+              const rest  = hasLabel ? raw.slice(colonIdx + 1).trim() : raw;
 
               return (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1 flex-shrink-0 text-sm">✓</span>
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="text-green-500 mt-0.5 flex-shrink-0 text-xs">●</span>
                   <span className="text-gray-700 leading-relaxed text-sm">
-                    {label && <span className="font-semibold text-gray-800">{label} </span>}
-                    {rest}
+                    {label && (
+                      <span className="font-semibold text-gray-900">{renderInlineText(label)}: </span>
+                    )}
+                    {renderInlineText(rest)}
                   </span>
                 </li>
               );
@@ -472,7 +485,7 @@ export default function FinancialAdvisorChatbotUi() {
       // Plain paragraph
       return (
         <p key={idx} className="text-gray-700 leading-relaxed mb-3 text-sm">
-          {part.replace(/\*\*/g, "").replace(/[\[\]]/g, "")}
+          {renderInlineText(block.trim())}
         </p>
       );
     });
@@ -802,46 +815,188 @@ export default function FinancialAdvisorChatbotUi() {
         </div>
       </div>
 
-      {/* ── Full-width Advice Display (unchanged layout) ── */}
+      {/* ── Full-width Advice Display ── */}
       {advice && (() => {
         const formattedSections = formatAdviceContent(advice);
+        const cf  = insights?.analyses?.cashFlow;
+        const ef  = insights?.analyses?.emergencyFund;
+        const emi = insights?.analyses?.emiSafety;
+        const fh  = insights?.analyses?.financialHealth;
+        const gf  = insights?.analyses?.goalFeasibility;
+        const db  = insights?.analyses?.debtBurden;
+
         return (
           <div className="w-full py-12 px-4 md:px-8 bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 border-t border-green-200 animate-fade-in">
             <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600 mb-4">
+
+              {/* Header */}
+              <div className="text-center mb-10">
+                <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600 mb-3">
                   Your Personalized Financial Roadmap 🚀
                 </h2>
                 <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                  A comprehensive plan designed specifically for {user?.name || "you"} to achieve financial success
+                  Built from real calculations — not templates
                 </p>
               </div>
 
+              {/* ── Insights Dashboard ── */}
+              {insights && (
+                <div className="mb-10">
+                  {/* Financial Health Score */}
+                  {fh && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
+                      <div className="flex flex-col sm:flex-row items-center gap-6">
+                        {/* Score circle */}
+                        <div className="flex-shrink-0 flex flex-col items-center">
+                          <div className={`w-28 h-28 rounded-full flex flex-col items-center justify-center border-8 ${
+                            fh.score >= 80 ? 'border-green-400 bg-green-50' :
+                            fh.score >= 60 ? 'border-blue-400 bg-blue-50' :
+                            fh.score >= 40 ? 'border-yellow-400 bg-yellow-50' :
+                                             'border-red-400 bg-red-50'
+                          }`}>
+                            <span className="text-3xl font-extrabold text-gray-800">{fh.score}</span>
+                            <span className="text-xs text-gray-500 font-medium">/100</span>
+                          </div>
+                          <span className={`mt-2 text-sm font-bold ${
+                            fh.score >= 80 ? 'text-green-600' :
+                            fh.score >= 60 ? 'text-blue-600' :
+                            fh.score >= 40 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>{fh.label}</span>
+                        </div>
+                        {/* Score breakdown */}
+                        <div className="flex-1 w-full">
+                          <h3 className="text-base font-bold text-gray-800 mb-3">Financial Health Score Breakdown</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[
+                              { label: 'Savings', val: fh.breakdown.savings, max: 25 },
+                              { label: 'Emergency', val: fh.breakdown.emergency, max: 25 },
+                              { label: 'Debt', val: fh.breakdown.debt, max: 25 },
+                              { label: 'Credit Card', val: fh.breakdown.creditCard, max: 25 },
+                            ].map(item => (
+                              <div key={item.label} className="bg-gray-50 rounded-xl p-3">
+                                <div className="text-xs text-gray-500 mb-1">{item.label}</div>
+                                <div className="text-lg font-bold text-gray-800">{item.val}<span className="text-xs text-gray-400">/{item.max}</span></div>
+                                <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1">
+                                  <div className="h-full bg-green-400 rounded-full" style={{ width: `${(item.val / item.max) * 100}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {fh.reasons?.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {fh.reasons.map((r, i) => (
+                                <span key={i} className="text-xs bg-red-50 text-red-600 border border-red-200 rounded-full px-3 py-1">⚠ {r}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                    {cf && (
+                      <div className={`rounded-xl p-4 border ${cf.cashFlowStatus === 'healthy' ? 'bg-green-50 border-green-200' : cf.cashFlowStatus === 'deficit' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="text-xs text-gray-500 mb-1">Monthly Surplus</div>
+                        <div className={`text-lg font-extrabold ${cf.monthlySurplus >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          ₹{cf.monthlySurplus.toLocaleString()}
+                        </div>
+                        <div className="text-xs mt-1 font-medium capitalize text-gray-600">{cf.cashFlowStatus}</div>
+                      </div>
+                    )}
+                    {ef && (
+                      <div className={`rounded-xl p-4 border ${ef.status === 'excellent' ? 'bg-green-50 border-green-200' : ef.status === 'critical' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="text-xs text-gray-500 mb-1">Emergency Fund</div>
+                        <div className="text-lg font-extrabold text-gray-800">{ef.monthsOfExpensesCovered}m</div>
+                        <div className="text-xs mt-1 font-medium capitalize text-gray-600">{ef.status} · need 6m</div>
+                      </div>
+                    )}
+                    {emi && (
+                      <div className={`rounded-xl p-4 border ${emi.status === 'safe' ? 'bg-green-50 border-green-200' : emi.status === 'dangerous' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="text-xs text-gray-500 mb-1">EMI Ratio</div>
+                        <div className="text-lg font-extrabold text-gray-800">{emi.emiRatio}%</div>
+                        <div className="text-xs mt-1 font-medium capitalize text-gray-600">{emi.status} · safe &lt;35%</div>
+                      </div>
+                    )}
+                    {db && (
+                      <div className={`rounded-xl p-4 border ${db.stressLevel === 'low' ? 'bg-green-50 border-green-200' : db.stressLevel === 'critical' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="text-xs text-gray-500 mb-1">Debt Stress</div>
+                        <div className="text-lg font-extrabold text-gray-800 capitalize">{db.stressLevel}</div>
+                        <div className="text-xs mt-1 font-medium text-gray-600">{db.debtRatio}% ratio</div>
+                      </div>
+                    )}
+                    {gf && (
+                      <div className={`rounded-xl p-4 border ${gf.feasibility === 'realistic' ? 'bg-green-50 border-green-200' : gf.feasibility === 'unrealistic' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                        <div className="text-xs text-gray-500 mb-1">Goal Feasibility</div>
+                        <div className="text-lg font-extrabold text-gray-800">{gf.achievementPercentage}%</div>
+                        <div className="text-xs mt-1 font-medium capitalize text-gray-600">{gf.feasibility.replace('_', ' ')}</div>
+                      </div>
+                    )}
+                    {cf && (
+                      <div className="rounded-xl p-4 border bg-blue-50 border-blue-200">
+                        <div className="text-xs text-gray-500 mb-1">Annual Potential</div>
+                        <div className="text-lg font-extrabold text-blue-700">₹{(cf.savingsPotential || 0).toLocaleString()}</div>
+                        <div className="text-xs mt-1 font-medium text-gray-600">savings/year</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warnings */}
+                  {insights.warnings?.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                      <h4 className="text-sm font-bold text-red-700 mb-2">⚠ Alerts</h4>
+                      <div className="space-y-1">
+                        {insights.warnings.map((w, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-red-700">
+                            <span className="flex-shrink-0 mt-0.5">{w.severity === 'critical' ? '🔴' : '🟡'}</span>
+                            <span><strong>{w.warning}:</strong> {w.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Opportunities */}
+                  {insights.opportunities?.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                      <h4 className="text-sm font-bold text-green-700 mb-2">✨ Opportunities</h4>
+                      <div className="space-y-1">
+                        {insights.opportunities.map((o, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-green-700">
+                            <span className="flex-shrink-0 mt-0.5">🟢</span>
+                            <span><strong>{o.opportunity}:</strong> {o.details} — {o.action}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Roadmap Sections ── */}
               <div className="grid gap-6 md:gap-8">
                 {formattedSections && formattedSections.map((section, index) => (
-                  <div key={index} className="transform hover:scale-[1.02] transition-all duration-300 animate-fade-in"
-                    style={{ animationDelay: `${0.1 * index}s` }}>
-                    <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-                      <div className={`bg-gradient-to-r ${section.bgClass} p-6 border-b-2 border-gray-100`}>
+                  <div key={index} className="transform hover:scale-[1.01] transition-all duration-300 animate-fade-in"
+                    style={{ animationDelay: `${0.08 * index}s` }}>
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-shadow duration-300">
+                      <div className={`bg-gradient-to-r ${section.bgClass} px-6 py-5 border-b border-gray-100`}>
                         <div className="flex items-center gap-4">
-                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${section.colorClass} flex items-center justify-center text-3xl shadow-lg`}>
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${section.colorClass} flex items-center justify-center text-2xl shadow-md flex-shrink-0`}>
                             {section.icon}
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-xl md:text-2xl font-bold text-gray-800">{section.title}</h3>
-                          </div>
+                          <h3 className="text-lg md:text-xl font-bold text-gray-800">{section.title}</h3>
                         </div>
                       </div>
                       <div className="p-6 md:p-8">
-                        <div className="prose prose-lg max-w-none">
-                          {parseContentWithBullets(section.content)}
-                        </div>
+                        {parseContentWithBullets(section.content)}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* Action buttons */}
               <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <button onClick={() => window.print()}
                   className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
@@ -850,7 +1005,7 @@ export default function FinancialAdvisorChatbotUi() {
                   </svg>
                   Print Roadmap
                 </button>
-                <button onClick={() => { setAdvice(null); setSubmitAttempted(false); }}
+                <button onClick={() => { setAdvice(null); setInsights(null); setSubmitAttempted(false); }}
                   className="px-8 py-3 bg-white border-2 border-green-500 text-green-600 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:bg-green-50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -858,6 +1013,7 @@ export default function FinancialAdvisorChatbotUi() {
                   Get New Advice
                 </button>
               </div>
+
             </div>
           </div>
         );

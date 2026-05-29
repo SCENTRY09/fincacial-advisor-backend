@@ -5,6 +5,7 @@ const { generateRecommendations } = require("../utils/recommendationEngine");
 const { analyzeFinancialTrend, buildTrendPromptContext } = require("../utils/financialTrendAnalysis");
 const { spawn } = require('child_process');
 const path = require('path');
+const { generateFinancialInsights, generateGeminiPrompt } = require("../engines/insightGenerator");
 require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -224,7 +225,6 @@ const generateFinancialAdvice = async (req, res) => {
       business_type,
       existing_savings,
       risk_tolerance,
-      // New structured fields
       occupation,
       maritalStatus,
       dependents,
@@ -245,81 +245,10 @@ const generateFinancialAdvice = async (req, res) => {
       financialKnowledge,
     } = req.body;
 
-    // ── Calculate financial health score FIRST ──────────────────────────────
-    console.log("\n[STEP 1] Calculating financial score...");
-    const scoreReport = calculateFinancialScore({
-      monthlyIncome:       monthlyIncome || monthly_income,
-      monthlyExpenses,
-      savings:             savings || existing_savings,
-      existingInvestments,
-      loanAmount,
-      creditCardDebt,
-      monthlyEMI,
-    });
-    console.log(`[STEP 1] Financial score: ${scoreReport.financialScore} (${scoreReport.scoreLabel})`);
-
-    // ── Fetch previous advice for trend analysis ──────────────────────────────
-    console.log("\n[STEP 2] Fetching previous advice for trend analysis...");
-    let previousAdvice = null;
-    try {
-      previousAdvice = await Advice.findOne({ userId: req.user._id })
-        .sort({ createdAt: -1 })
-        .select('financialScore inputData createdAt')
-        .lean();
-      console.log(`[STEP 2] Previous advice found: ${previousAdvice ? 'Yes' : 'No'}`);
-    } catch (fetchErr) {
-      console.warn('[STEP 2] Could not fetch previous advice:', fetchErr.message);
-    }
-
-    // ── Build a lightweight current advice object for trend comparison ────────
-    const currentAdviceForTrend = {
-      financialScore: scoreReport.financialScore,
-      inputData: {
-        monthlyIncome, monthly_income, monthlyExpenses,
-        savings, existing_savings, existingInvestments,
-        loanAmount, creditCardDebt, monthlyEMI,
-      },
-      createdAt: new Date(),
-    };
-
-    const trendReport = analyzeFinancialTrend(currentAdviceForTrend, previousAdvice);
-    console.log(`[STEP 2] Trend: ${trendReport.trend} | Momentum: ${trendReport.momentum.label}`);
-
-    // ── Generate rule-based recommendations ──────────────────────────────────
-    console.log("\n[STEP 3] Generating rule-based recommendations...");
-    const recommendations = generateRecommendations({
-      financialScore:       scoreReport.financialScore,
-      scoreLabel:           scoreReport.scoreLabel,
-      breakdown:            scoreReport.breakdown,
-      monthlyIncome:        monthlyIncome || monthly_income,
-      monthlyExpenses,
-      savings:              savings || existing_savings,
-      existingInvestments,
-      loanAmount,
-      creditCardDebt,
-      monthlyEMI,
-      goalType,
-      riskTolerance:        risk_tolerance,
-      investmentExperience,
-      financialKnowledge,
-    });
+    // ── STEP 1: Generate Financial Insights using Calculation Engine ──────────
+    console.log("\n[STEP 1] Generating financial insights using calculation engine...");
     
-    const totalRecommendations = 
-      (recommendations.priorityActions?.length || 0) +
-      (recommendations.investmentRecommendations?.length || 0) +
-      (recommendations.debtManagement?.length || 0) +
-      (recommendations.savingsSuggestions?.length || 0) +
-      (recommendations.warnings?.length || 0) +
-      (recommendations.governmentSchemes?.length || 0) +
-      (recommendations.personalizedInsights?.length || 0);
-    
-    console.log(`[STEP 3] Generated ${totalRecommendations} recommendations`);
-
-    // ── CALL RAG PIPELINE INSTEAD OF DIRECT GEMINI ──────────────────────────
-    console.log("\n[STEP 4] CALLING RAG PIPELINE (NOT DIRECT GEMINI)...");
-    console.log("[STEP 4] This will run: ML models → FAISS retrieval → Context building → Gemini");
-    
-    const ragUserProfile = {
+    const userProfile = {
       name,
       age,
       occupation,
@@ -344,109 +273,47 @@ const generateFinancialAdvice = async (req, res) => {
       financialKnowledge,
     };
 
-    let ragResult;
-    try {
-      ragResult = await callRAGPipeline(ragUserProfile);
-      console.log("\n[STEP 4] RAG Pipeline completed successfully");
-      console.log("[STEP 4] Retrieved sources:", ragResult.retrievedSources?.length || 0);
-      console.log("[STEP 4] Chunks retrieved:", ragResult.retrievalStats?.chunks_retrieved || 0);
-    } catch (ragErr) {
-      console.error("\n[STEP 4] RAG Pipeline failed:", ragErr.message);
-      
-      // Check if it's a quota error
-      if (ragErr.message && ragErr.message.includes('429')) {
-        console.error("[STEP 4] ⚠️ QUOTA EXCEEDED - Free tier limit reached");
-        throw new Error('Gemini API quota exceeded. Please enable billing or try again later.');
-      }
-      
-      console.log("[STEP 4] Falling back to direct Gemini call...");
-      
-      // Fallback: Use direct Gemini if RAG fails
-      const effectiveIncome = monthlyIncome || monthly_income || "Not provided";
-      const effectiveLocation = city && state ? `${city}, ${state}` : (location || "Not provided");
-      const debtSummary = [
-        loanAmount > 0 ? `Loan: ₹${loanAmount}` : null,
-        creditCardDebt > 0 ? `Credit Card Debt: ₹${creditCardDebt}` : null,
-        monthlyEMI > 0 ? `Monthly EMI: ₹${monthlyEMI}` : null,
-      ].filter(Boolean).join(", ") || "None";
+    const financialInsights = generateFinancialInsights(userProfile);
+    console.log("[STEP 1] Financial insights generated successfully");
+    console.log("[STEP 1] Financial Health Score:", financialInsights.analyses.financialHealth.score);
+    console.log("[STEP 1] Priority Actions:", financialInsights.priorityActions.length);
+    console.log("[STEP 1] Warnings:", financialInsights.warnings.length);
 
-      const fallbackPrompt = `You are a highly experienced financial advisor. Generate a detailed financial advice report for ${name}.
+    // ── STEP 2: Generate Gemini Prompt from Structured Insights ──────────────
+    console.log("\n[STEP 2] Generating Gemini prompt from structured insights...");
+    const geminiPrompt = generateGeminiPrompt(userProfile, financialInsights);
 
-**Client Profile:**
-- Name: ${name}
-- Age: ${age || "Not provided"}
-- Occupation: ${occupation || "Not provided"}
-- Location: ${effectiveLocation}
-- Monthly Income: ₹${effectiveIncome}
-- Monthly Expenses: ₹${monthlyExpenses || "Not provided"}
-- Current Savings: ₹${savings || existing_savings}
-- Total Debt: ${debtSummary}
-- Financial Goal: ${financial_goal}
-- Risk Tolerance: ${risk_tolerance}
+    // ── STEP 3: Call Gemini to Explain and Format the Insights ──────────────
+    console.log("\n[STEP 3] Calling Gemini API to generate personalized roadmap...");
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    
+    // Add timeout protection
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000)
+    );
+    
+    const result = await Promise.race([
+      model.generateContent([geminiPrompt]),
+      timeoutPromise
+    ]);
 
-Provide a comprehensive financial roadmap with these sections:
-1. Financial Health Snapshot
-2. Personalized Goal Strategy
-3. Smart Budgeting Plan
-4. Investment Roadmap
-5. Emergency & Savings
-6. Risk Protection Plan
-7. Tax Optimization
-8. Debt Management Strategy
-9. 30-Day Action Plan
-10. Summary
+    const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-Write in simple, clear language with real numbers and calculations.`;
-
-      try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        // Add timeout protection for fallback call
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Gemini API timeout after 30 seconds')), 30000)
-        );
-        
-        const result = await Promise.race([
-          model.generateContent([fallbackPrompt]),
-          timeoutPromise
-        ]);
-        
-        const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (!responseText) {
-          throw new Error("Empty response from Gemini API");
-        }
-
-        ragResult = {
-          roadmap: responseText,
-          retrievedSources: [],
-          retrievalStats: { chunks_retrieved: 0, avg_relevance: 0 },
-          financialAnalysis: {
-            financialScore: scoreReport.financialScore,
-            riskLevel: risk_tolerance,
-            spendingBehavior: "Unknown"
-          }
-        };
-      } catch (fallbackErr) {
-        console.error("[STEP 4] Fallback Gemini call also failed:", fallbackErr.message);
-        
-        // Check if it's a quota error
-        if (fallbackErr.message && fallbackErr.message.includes('429')) {
-          throw new Error('Gemini API quota exceeded. Please enable billing or try again later.');
-        }
-        
-        throw fallbackErr;
-      }
+    if (!responseText) {
+      throw new Error("Empty response from Gemini API");
     }
 
-    // ── Persist advice record ────────────────────────────────────────────────
-    console.log("\n[STEP 5] Saving advice record to database...");
+    console.log("[STEP 3] Gemini roadmap generated successfully");
+
+    // ── STEP 4: Persist advice record ────────────────────────────────────────
+    console.log("\n[STEP 4] Saving advice record to database...");
     try {
       await Advice.create({
         userId: req.user._id,
-        generatedAdvice: ragResult.roadmap || ragResult.financial_advice,
+        generatedAdvice: responseText,
         riskScore: risk_tolerance,
-        financialScore: scoreReport.financialScore,
+        financialScore: financialInsights.analyses.financialHealth.score,
         inputData: {
           name, age, monthly_income, financial_goal,
           location, preferred_language, business_type,
@@ -457,16 +324,12 @@ Write in simple, clear language with real numbers and calculations.`;
           loanAmount, creditCardDebt, monthlyEMI,
           goalType, goalDuration, targetAmount,
           investmentExperience, financialKnowledge,
-          savingsRatioScore:     scoreReport.breakdown.savingsRatio.score,
-          expenseRatioScore:     scoreReport.breakdown.expenseRatio.score,
-          debtRatioScore:        scoreReport.breakdown.debtRatio.score,
-          emiBurdenScore:        scoreReport.breakdown.emiBurden.score,
-          investmentHealthScore: scoreReport.breakdown.investmentHealth.score,
         },
+        structuredInsights: financialInsights,
       });
-      console.log("[STEP 5] Advice record saved successfully");
+      console.log("[STEP 4] Advice record saved successfully");
     } catch (saveErr) {
-      console.error("[STEP 5] Failed to save advice record:", saveErr.message);
+      console.error("[STEP 4] Failed to save advice record:", saveErr.message);
     }
 
     console.log("\n" + "=".repeat(80));
@@ -474,16 +337,25 @@ Write in simple, clear language with real numbers and calculations.`;
     console.log("=".repeat(80) + "\n");
 
     res.json({
-      financial_advice: ragResult.roadmap || ragResult.financial_advice,
-      scoreReport,
-      recommendations,
-      trendReport,
-      retrievedSources: ragResult.retrievedSources || [],
-      retrievalStats: ragResult.retrievalStats || {},
+      financial_advice: responseText,
+      financialScore: financialInsights.analyses.financialHealth.score,
+      insights: financialInsights,
+      priorityActions: financialInsights.priorityActions,
+      warnings: financialInsights.warnings,
+      opportunities: financialInsights.opportunities,
     });
   } catch (error) {
     console.error("\n[ERROR] generateFinancialAdvice failed:", error.message);
     console.error(error.stack);
+    
+    // Handle quota error specifically
+    if (error.message && error.message.includes('429')) {
+      return res.status(429).json({ 
+        error: 'API quota exceeded',
+        message: 'Gemini API quota exceeded. Please enable billing or try again later.',
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 };
@@ -500,7 +372,7 @@ const chatWithBot = async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const systemPrompt = `You are "Dhan Sarthi", a knowledgeable and friendly financial advisor specializing in Indian financial markets, government schemes, and personal finance. You help users with:
 
