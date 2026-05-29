@@ -597,9 +597,10 @@ function calculateFinancialHealthScore(userProfile) {
   breakdown.creditCard = Math.round(ccDebtScore);
   if (creditCardDebt > 0) reasons.push("Outstanding credit card debt detected");
 
-  score = Math.round(
-    (breakdown.savings + breakdown.emergency + breakdown.debt + breakdown.creditCard) / 4
-  );
+  // Total score = sum of all 4 components (max 100)
+  score = Math.min(100, Math.round(
+    breakdown.savings + breakdown.emergency + breakdown.debt + breakdown.creditCard
+  ));
 
   return {
     score,
